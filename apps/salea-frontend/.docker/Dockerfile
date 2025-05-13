@@ -21,8 +21,7 @@ RUN \
 COPY $APP_SOURCE_DIRECTORY/dist "/usr/share/nginx/html$APP_TARGET_DIRECTORY"
 COPY .src/main/docker/3000-vite.conf /etc/nginx/conf.d/3000.conf
 
-COPY --chmod=0755 .src/main/docker/env.sh /docker-entrypoint.d/env.sh
-
+COPY --chmod=0755 $APP_SOURCE_DIRECTORY/.docker/env.sh /docker-entrypoint.d/env.sh
 
 EXPOSE 3000
 
