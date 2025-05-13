@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog.tsx";
 import { useIsMobile } from "../hooks/use-mobile.tsx";
 import { useMeetingContext } from "../context/MeetingContext.tsx";
-const BASE_URL = import.meta.env.VITE_API_PUCLIC_BASE_URL;
+const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
 
 
 const MeetingOutcome: React.FC = () => {

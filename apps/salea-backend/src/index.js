@@ -1,13 +1,6 @@
 // index.js
 import dotenv from 'dotenv';
 dotenv.config();
-console.log('CLIENT_ID:', process.env.CLIENT_ID);
-console.log('CLIENT_SECRET:', process.env.CLIENT_SECRET);
-console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
-console.log('SCOPES:', process.env.SCOPES);
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-console.log('PORT:', process.env.PORT);
-
 import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
@@ -28,6 +21,13 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const SCOPES = process.env.SCOPES;
 const FRONTEND_URL = process.env.FRONTEND_URL;
+
+console.log('CLIENT_ID:', process.env.CLIENT_ID);
+console.log('CLIENT_SECRET:', process.env.CLIENT_SECRET);
+console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
+console.log('SCOPES:', process.env.SCOPES);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('PORT:', process.env.PORT);
 
 
 app.use(express.json());

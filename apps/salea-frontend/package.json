@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "VITE_API_BASE_URL=MY_APP_VITE_PUBLIC_API_BASE_URL vite build",
-    "build2": "tsc -b && VITE_API_BASE_URL=MY_APP_VITE_PUBLIC_API_BASE_URL vite build",
+    "build": "VITE_PUBLIC_API_BASE_URL=MY_APP_VITE_PUBLIC_API_BASE_URL vite build",
+    "build2": "tsc -b && VITE_PUBLIC_API_BASE_URL=MY_APP_VITE_PUBLIC_API_BASE_URL vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
