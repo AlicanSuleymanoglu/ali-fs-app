@@ -32,7 +32,7 @@ function App() {
       credentials: 'include'
     })
       .then(res => {
-        if (res.status === 200) {
+        if (res.status === 200 || res.status === 304) {
           setIsAuthenticated(true);
           console.log(isAuthenticated);
           console.log(setIsAuthenticated);
