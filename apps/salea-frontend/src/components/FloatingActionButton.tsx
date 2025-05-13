@@ -27,7 +27,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const { id } = useParams<{ id: string }>();
   const [isOpen, setIsOpen] = useState(false);
   const [isCreateMeetingDialogOpen, setIsCreateMeetingDialogOpen] = useState(false);
-  const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<CompanyWithDeal | null>(null);
   const [taskNotes, setTaskNotes] = useState("");
   const [taskDate, setTaskDate] = useState<Date | undefined>(undefined);
@@ -42,59 +41,8 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const user = useUser();
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const toggleOptions = () => setIsOpen(!isOpen);
-
   const handleCreateMeeting = () => {
-    setIsOpen(false);
     setIsCreateMeetingDialogOpen(true);
-  };
-
-  const handleCreateTask = () => {
-    setIsOpen(false);
-    if (onCreateTask) {
-      onCreateTask();
-    } else {
-      setIsCreateTaskDialogOpen(true);
-    }
-  };
-
-  const handleSubmitTask = async () => {
-    if (!selectedCompany || !taskDate) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    const scheduledDate = new Date(taskDate);
-    scheduledDate.setHours(9, 0, 0, 0); // always 9:00am
-
-    const payload = {
-      taskDate: scheduledDate.getTime(),
-      companyId: selectedCompany.id,
-      contactId: selectedCompany.contactId,
-      dealId: selectedCompany.dealId,
-      companyName: selectedCompany.name,
-      ownerId: user?.user_id,
-      taskBody: taskNotes
-    };
-
-    try {
-      const res = await fetch(`${BASE_URL}/api/hubspot/tasks/create`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error("Failed to create task");
-
-      toast.success(`Task scheduled for ${format(scheduledDate, 'dd.MM.yyyy')}`);
-      setIsCreateTaskDialogOpen(false);
-      setTaskDate(undefined);
-      setTaskNotes("");
-    } catch (err) {
-      console.error("❌ Failed to schedule task:", err);
-      toast.error("Failed to schedule follow-up task");
-    }
   };
 
   const handleSubmitMeeting = async () => {
@@ -171,6 +119,16 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
     return options;
   };
 
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = (e.target as HTMLSelectElement).value;
+    setStartTime(value);
+  };
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = (e.target as HTMLTextAreaElement).value;
+    setNotes(value);
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
@@ -187,20 +145,11 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
       <div ref={fabRef} className="fixed bottom-6 right-6 z-40">
         <div className="flex flex-col items-end space-y-4">
-          {isOpen && (
-            <div className="flex items-center">
-              <span className="mr-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-[#2E1813] text-sm shadow-sm">Task</span>
-              <button className="bg-black hover:bg-black/90 text-[#FF8769] rounded-full shadow-lg w-12 h-12 flex items-center justify-center" onClick={handleCreateTask}>
-                <FileText size={20} />
-              </button>
-            </div>
-          )}
-
           <div className="flex items-center">
             {isOpen && (
               <span className="mr-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-[#2E1813] text-sm shadow-sm">Meeting</span>
             )}
-            <button className="bg-black hover:bg-black/90 text-[#FF8769] rounded-full shadow-lg w-14 h-14 flex items-center justify-center" onClick={isOpen ? handleCreateMeeting : toggleOptions}>
+            <button className="bg-black hover:bg-black/90 text-[#FF8769] rounded-full shadow-lg w-14 h-14 flex items-center justify-center" onClick={handleCreateMeeting}>
               {isOpen ? <Calendar size={24} /> : <Plus size={24} />}
             </button>
           </div>
@@ -255,7 +204,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
             <div className="space-y-2">
               <Label htmlFor="start-time">Start Time <span className="text-red-500">*</span></Label>
-              <select id="start-time" className="w-full rounded-md border px-3 py-2 text-sm" value={startTime} onChange={(e) => setStartTime(e.target.value)} required>
+              <select id="start-time" className="w-full rounded-md border px-3 py-2 text-sm" value={startTime} onChange={handleStartTimeChange} required>
                 <option value="" disabled>Select time</option>
                 {generateTimeOptions()}
               </select>
@@ -263,7 +212,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" placeholder="Add any internal notes about this meeting" value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[100px]" />
+              <Textarea id="notes" placeholder="Add any internal notes about this meeting" value={notes} onChange={handleNotesChange} className="min-h-[100px]" />
             </div>
 
             <div className="flex justify-end pt-4">
@@ -271,36 +220,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
                 Schedule Meeting
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Task Dialog */}
-      <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create Task</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <CompanySearch value={selectedCompany} onSelect={setSelectedCompany} required />
-            <div>
-              <Label>Optional Notes</Label>
-              <Textarea value={taskNotes} onChange={(e) => setTaskNotes(e.target.value)} placeholder="Add any task notes..." />
-            </div>
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}> <CalendarIcon className="mr-2 h-4 w-4" /> {taskDate ? format(taskDate, "dd.MM.yyyy") : <span>Select date</span>} </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent mode="single" selected={date} onSelect={setTaskDate} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <Button onClick={handleSubmitTask} className="bg-[#2E1813] hover:bg-[#2E1813]/90 text-white">
-              Create Task
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

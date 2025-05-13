@@ -24,10 +24,11 @@ import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 
   useEffect(() => {
-    fetch('${BASE_URL}/api/hubspot-data', {
+    fetch(`${BASE_URL}/api/hubspot-data`, {
       credentials: 'include'
     })
       .then(res => {
@@ -51,9 +52,9 @@ function App() {
                 <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white flex flex-col items-center justify-center p-6">
                   <div className="max-w-md w-full flex flex-col items-center">
                     <div className="mb-8 bg-[#E9A68A] w-32 h-32 rounded-3xl flex items-center justify-center">
-                      <img 
-                        src="/lovable-uploads/ffa9c1a8-986c-43a5-a4d3-85f80bc51bf9.png" 
-                        alt="ali logo" 
+                      <img
+                        src="/lovable-uploads/ffa9c1a8-986c-43a5-a4d3-85f80bc51bf9.png"
+                        alt="ali logo"
                         className="w-full h-auto"
                       />
                     </div>

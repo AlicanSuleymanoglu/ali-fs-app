@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, Phone, X, Calendar as CalendarIcon, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format, isPast, isSameDay } from 'date-fns';
@@ -13,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "../components/ui/input.tsx";
 import { useState as useStateDialog } from "react";
 import { Label } from "../components/ui/label.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover.tsx';
+import { Calendar as CalendarComponent } from '../components/ui/calendar.tsx';
 
 interface TaskCardProps {
   task: Task;
@@ -27,6 +28,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const [disqualifyReason, setDisqualifyReason] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
   const [showDisqualifyDialog, setShowDisqualifyDialog] = useState(false);
+  const [newDueDate, setNewDueDate] = useState<Date | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
@@ -38,16 +41,20 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const handleScheduleMeeting = () => {
     setIsDialogOpen(false);
-    // If this task is scheduled, we also mark it as completed
-    if (onComplete) onComplete(task.id);
+    // Directly navigate to schedule meeting with prefilled values
     navigate('/add-meeting', {
       state: {
         companyName: task.restaurantName,
-        companyId: `task-${task.id}`,
-        contactName: task.contactName
+        companyId: task.companyId || `task-${task.id}`, // Preselect the company
+        contactName: task.contactName,
+        contactId: task.contactId,
+        dealId: task.dealId,
+        meetingType: "Sales Followup", // Preselect meeting type
+        forceCompany: true // This will lock the company selection
       }
     });
   };
+
 
   const handleCall = () => {
     window.location.href = `tel:${task.phoneNumber}`;
@@ -62,6 +69,43 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const openDisqualifyDialog = () => {
     setShowDisqualifyDialog(true);
     setIsDialogOpen(false);
+  };
+
+  const handlePostponeClick = () => {
+    setShowCalendar(true);
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setNewDueDate(date);
+    }
+  };
+
+  const handlePostpone = async () => {
+    if (!newDueDate) {
+      toast.error("Please select a new date to postpone the task");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/tasks/${task.id}/postpone`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newDueDate: newDueDate.toISOString(),
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to postpone task");
+
+      toast.success("Task postponed successfully");
+      setShowCalendar(false);
+      setIsDialogOpen(false);
+    } catch (err) {
+      console.error("❌ Error postponing task:", err);
+      toast.error("Failed to postpone task");
+    }
   };
 
   const markDealAsClosedLost = async (dealId: string, reason: string) => {
@@ -88,7 +132,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const handleDisqualify = async () => {
     if (!disqualifyReason) {
-      toast.error("Please select a disqualification reason");
+      toast.error("Please select a closed lost reason");
       return;
     }
 
@@ -124,6 +168,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     setShowDisqualifyDialog(false);
   };
 
+  const handleOtherReasonChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = (e.target as HTMLInputElement).value;
+    setOtherReason(value);
+  };
 
   return (
     <>
@@ -206,17 +254,39 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
               Lose the Deal
             </Button>
             <Button
-              onClick={handleComplete}
+              onClick={handlePostponeClick}
               className="w-full flex items-center justify-center"
               variant="outline"
               size="sm"
             >
-              <CheckCircle size={16} className="mr-1" />
-              Complete
+              <Clock size={16} className="mr-1" />
+              Postpone
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {showCalendar && (
+        <Dialog open={showCalendar} onOpenChange={setShowCalendar}>
+          <DialogContent className="sm:max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle>Select New Date</DialogTitle>
+            </DialogHeader>
+            <CalendarComponent
+              mode="single"
+              selected={newDueDate || undefined}
+              onSelect={handleDateSelect}
+              initialFocus
+              weekStartsOn={1}
+            />
+            <div className="flex justify-end pt-4">
+              <Button onClick={handlePostpone} className="bg-[#2E1813] hover:bg-[#2E1813]/90 text-white">
+                Confirm Postpone
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={showDisqualifyDialog} onOpenChange={setShowDisqualifyDialog}>
         <DialogContent className="sm:max-w-md">
@@ -231,7 +301,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="disqualify-reason">Disqualification Reason</Label>
+              <Label htmlFor="disqualify-reason">Closed Lost Reason</Label>
               <Select
                 onValueChange={(value) => setDisqualifyReason(value)}
                 value={disqualifyReason}
@@ -255,11 +325,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
             {disqualifyReason === "Other" && (
               <div className="space-y-2">
-                <Label htmlFor="other-reason">Disqualification Reason - Other</Label>
+                <Label htmlFor="other-reason">Closed Lost Reason - Other</Label>
                 <Input
                   id="other-reason"
                   value={otherReason}
-                  onChange={(e) => setOtherReason(e.target.value)}
+                  onChange={handleOtherReasonChange}
                   placeholder="Please specify the reason"
                 />
               </div>

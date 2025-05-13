@@ -16,7 +16,7 @@
     "noUnusedLocals": false,
     "strictNullChecks": false,
     "target": "es6",
-    "lib": ["dom", "es6"],
+    "lib": ["dom", "esnext"],
     "jsx": "react",
   }
 }
