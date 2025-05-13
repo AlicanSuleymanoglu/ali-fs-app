@@ -1,0 +1,35 @@
+---
+.gitlab-ci-patch.kubernetes-yaml:
+  - |
+    if [ -z ${INT_SERVICE_IMAGE+x} ]; then echo "E: I require INT_SERVICE_IMAGE to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_SERVICE_NAME+x} ]; then echo "E: I require INT_SERVICE_NAME to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_SERVICE_VERSION+x} ]; then echo "E: I require INT_SERVICE_VERSION to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_ENV_ENVIRONMENT+x} ]; then echo "E: I require INT_ENV_ENVIRONMENT to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_KUBERNETES_FILE_INPUT_NAME+x} ]; then echo "E: I require INT_KUBERNETES_FILE_INPUT_NAME to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_KUBERNETES_FILE_OUTPUT_NAME+x} ]; then echo "E: I require INT_KUBERNETES_FILE_OUTPUT_NAME to be set. Aborting."; exit 1; fi
+  - |
+    export INT_SERVICE_IMAGE
+    export INT_SERVICE_NAME
+    export INT_SERVICE_VERSION
+    export APP_NAME
+    tmpfile=$(mktemp)
+    echo ==INPUT FILE=======================
+    echo =
+    cat $INT_KUBERNETES_FILE_INPUT_NAME
+    echo =
+    echo ===================================
+    echo =
+    envsubst "$(printf '${%s} ' $(env | cut -d'=' -f1))" --variables | xargs -L4
+    echo =
+    cp --attributes-only --preserve $INT_KUBERNETES_FILE_INPUT_NAME $tmpfile
+    cat $INT_KUBERNETES_FILE_INPUT_NAME | envsubst "$(printf '${%s} ' $(env | cut -d'=' -f1))" | envsubst "$(printf '$%s ' $(env | cut -d'=' -f1))" > $tmpfile && mv $tmpfile $INT_KUBERNETES_FILE_OUTPUT_NAME
+    echo ==OUTPUT FILE======================
+    echo =
+    cat $INT_KUBERNETES_FILE_OUTPUT_NAME
+    echo =
+    echo ===================================

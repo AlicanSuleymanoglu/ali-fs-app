@@ -1,0 +1,87 @@
+---
+.gitlab-ci-cache.yarn-lock.early-exit:
+  - |
+    shopt -s globstar
+    resultSum=0
+    resultCount=0
+    for packageLockFile in **/yarn.lock; do
+      if [[ $packageLockFile == *"node_modules"* ]]; then continue; fi
+      if [[ -f "$packageLockFile" ]]; then
+        LOCK_SHA256_HASH=$( sha256sum $packageLockFile | awk '{ print $1 }')
+        echo "Current sha256 hash is $LOCK_SHA256_HASH"
+        echo "Checking sha256 hash of $packageLockFile"
+        
+        ((resultCount+=1));
+        if ! sha256sum -c "$packageLockFile.sha256sum"; then
+          echo "$packageLockFile checksum does not match cache"
+          ((resultSum+=1));
+        fi
+      fi
+    done
+
+    echo "$resultCount - $resultSum"
+    if [[ "$resultCount" -gt "0" ]]; then
+      if [[ "$resultSum" -eq "0" ]]; then
+        CI_JOB_SKIP_EXIT_CODE=0
+        exit $CI_JOB_SKIP_EXIT_CODE
+      fi
+    fi
+
+.gitlab-ci-cache.yarn-lock.late-exit:
+  - |
+    shopt -s globstar
+    resultSum=0
+    resultCount=0
+    for packageLockFile in **/yarn.lock; do
+      if [[ $packageLockFile == *"node_modules"* ]]; then continue; fi
+      if [[ -f "$packageLockFile" ]]; then
+        LOCK_SHA256_HASH=$( sha256sum "$packageLockFile" | awk '{ print $1 }')
+        echo "Current sha256 hash is $LOCK_SHA256_HASH"
+        echo "Checking sha256 hash of $packageLockFile"
+        
+        ((resultCount+=1));
+        if ! sha256sum -c "$packageLockFile.sha256sum"; then
+          echo "$packageLockFile checksum does not match cache"
+          sha256sum "$packageLockFile" > "$packageLockFile.sha256sum"
+          ((resultSum+=1));
+        fi
+      fi
+    done
+
+    echo "$resultCount - $resultSum"
+    if [[ "$resultCount" -gt "0" ]]; then
+      if [[ "$resultSum" -ne "0" ]]; then
+        CI_JOB_SKIP_EXIT_CODE=218
+        exit $CI_JOB_SKIP_EXIT_CODE
+      fi
+    fi
+
+
+.gitlab-ci-cache.yarn.late-exit:
+  - CI_JOB_SKIP_EXIT_CODE=0
+  
+
+  - mkdir -p ${CI_PROJECT_DIR}/.yarn
+  - mkdir -p ${CI_PROJECT_DIR}/.yarn/cache
+  - mkdir -p ${CI_PROJECT_DIR}/node_modules
+  - YARN_GLOBAL_FOLDER=${CI_PROJECT_DIR}/.yarn
+  - |
+    if grep -q packageManager package.json; then
+      echo "packageManager defined in package.json - will run corepack"
+      corepack yarn install  
+    else
+      yarn install
+    fi
+  - |
+    YARN_LOCK_SHA256_HASH=$( sha256sum yarn.lock | awk '{ print $1 }')
+    echo "Current sha256 hash is $YARN_LOCK_SHA256_HASH"
+    echo "Checking sha256 hash of yarn.lock"
+    
+    if ! sha256sum -c yarn.lock.sha256sum; then
+      echo "yarn.lock checksum does not match cache"
+      sha256sum yarn.lock > yarn.lock.sha256sum
+      CI_JOB_SKIP_EXIT_CODE=218
+    else
+      echo "Cache is the same as before, won't update cache"
+    fi
+  - exit $CI_JOB_SKIP_EXIT_CODE

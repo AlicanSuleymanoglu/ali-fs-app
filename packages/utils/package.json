@@ -1,0 +1,27 @@
+{
+  "name": "@monorepo/utils",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@monorepo/jest-playwright-config": "*",
+    "@monorepo/typescript-config": "*",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6",
+    "ts-node": "^10.9.2",
+    "typescript": "latest"
+  },
+  "files": [
+    "dist"
+  ]
+}
