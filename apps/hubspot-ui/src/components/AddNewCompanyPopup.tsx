@@ -101,7 +101,7 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Add New Restaurant</DialogTitle>
+                    <DialogTitle>Add New Restaurant!</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreateCompany} className="py-4 space-y-4">
                     <div className="space-y-2">
