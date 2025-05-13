@@ -10,7 +10,7 @@
         "prod": "PORT=3000 node dist/server.js"
     },
     "dependencies": {
-        "@hubspot/api-client": "^3.0.0",
+        "@hubspot/api-client": "^12.1.0",
         "axios": "^0.21.1",
         "cors": "^2.8.5",
         "dotenv": "^10.0.0",
