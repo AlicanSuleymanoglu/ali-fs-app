@@ -1330,3 +1330,8 @@ app.post('/api/companies/create', async (req, res) => {
     res.status(500).json({ error: "Failed to create company" });
   }
 });
+
+
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
