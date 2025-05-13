@@ -40,7 +40,7 @@ function App() {
       })
       .catch(() => setIsAuthenticated(false));
     console.log(isAuthenticated);
-    console.log(isAuthenticated);
+    console.log(setIsAuthenticated);
   }, []);
 
   return (
