@@ -85,6 +85,7 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/api/hubspot-data', (req, res) => {
   if (req.session.accessToken) {
     res.status(200).json({ authenticated: true });
+    res.status(304).json({ authenticated: true });
   } else {
     res.status(401).json({ authenticated: false });
   }

@@ -34,8 +34,12 @@ function App() {
       .then(res => {
         if (res.status === 200) {
           setIsAuthenticated(true);
+          console.log(isAuthenticated);
+          console.log(setIsAuthenticated);
         } else {
           setIsAuthenticated(false);
+          console.log(isAuthenticated);
+          console.log(setIsAuthenticated);
         }
       })
       .catch(() => setIsAuthenticated(false));
