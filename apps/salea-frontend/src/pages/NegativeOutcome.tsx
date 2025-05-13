@@ -11,8 +11,7 @@ const NegativeOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
   // 1. Try navigation state
   const navDealId = location.state?.dealId;
   // 2. Try context
