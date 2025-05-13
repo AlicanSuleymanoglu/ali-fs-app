@@ -77,7 +77,7 @@ items:
         kube-monkey/mtbf: "2"
       name: "$INT_SERVICE_NAME"
     spec:
-      replicas: 2
+      replicas: 1
       selector:
         matchLabels:
           app: "$INT_SERVICE_NAME"
@@ -159,11 +159,11 @@ items:
               lifecycle:
                 preStop:
                   exec:
-                    command: 
-                    - "/bin/sh"
-                    - "-ce" 
-                    - |
-                      sleep 10 # give k8s svc balancer the chance to unregister routing before shutting down
+                    command:
+                      - "/bin/sh"
+                      - "-ce"
+                      - |
+                          sleep 10 # give k8s svc balancer the chance to unregister routing before shutting down
               startupProbe:
                 httpGet:
                   scheme: HTTP
