@@ -1,0 +1,12 @@
+{
+  "preset": "ts-jest/presets/js-with-ts",
+  "testEnvironment": "node",
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+  "coverageDirectory": "coverage",
+  "collectCoverageFrom": ["**/*.{ts,tsx}", "!**/*.d.ts", "!node_modules/**"],
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/", "<rootDir>/src/__tests__/e2e"],
+  "moduleNameMapper": {
+    "^@monorepo/(.+)$": "<rootDir>/../../packages/$1/src",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  }
+}

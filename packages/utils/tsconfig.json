@@ -1,0 +1,10 @@
+{
+  "extends": "@monorepo/typescript-config/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["."],
+  "exclude": ["dist", "build", "node_modules"]
+}

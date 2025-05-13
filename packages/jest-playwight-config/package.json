@@ -1,0 +1,17 @@
+{
+  "name": "@monorepo/jest-playwright-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    "./jest-config": "./jest.config.json",
+    "./playwright-config": "./playwright.config.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1"
+  }
+}

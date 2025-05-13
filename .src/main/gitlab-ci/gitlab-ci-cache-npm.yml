@@ -1,0 +1,86 @@
+---
+.gitlab-ci-cache.npm-lock.early-exit:
+  - |
+    shopt -s globstar
+    resultSum=0
+    resultCount=0
+    for packageLockFile in **/package-lock.json; do
+      if [[ $packageLockFile == *"node_modules"* ]]; then continue; fi
+      if [[ -f "$packageLockFile" ]]; then
+        LOCK_SHA256_HASH=$( sha256sum $packageLockFile | awk '{ print $1 }')
+        echo "Current sha256 hash is $LOCK_SHA256_HASH"
+        echo "Checking sha256 hash of $packageLockFile"
+        
+        ((resultCount+=1));
+        if ! sha256sum -c "$packageLockFile.sha256sum"; then
+          echo "$packageLockFile checksum does not match cache"
+          ((resultSum+=1));
+        fi
+      fi
+    done
+
+    echo "$resultCount - $resultSum"
+    if [[ "$resultCount" -gt "0" ]]; then
+      if [[ "$resultSum" -eq "0" ]]; then
+        CI_JOB_SKIP_EXIT_CODE=0
+        exit $CI_JOB_SKIP_EXIT_CODE
+      fi
+    fi
+
+.gitlab-ci-cache.npm-lock.late-exit:
+  - |
+    shopt -s globstar
+    resultSum=0
+    resultCount=0
+    for packageLockFile in **/package-lock.json; do
+      if [[ $packageLockFile == *"node_modules"* ]]; then continue; fi
+      if [[ -f "$packageLockFile" ]]; then
+        LOCK_SHA256_HASH=$( sha256sum "$packageLockFile" | awk '{ print $1 }')
+        echo "Current sha256 hash is $LOCK_SHA256_HASH"
+        echo "Checking sha256 hash of $packageLockFile"
+        
+        ((resultCount+=1));
+        if ! sha256sum -c "$packageLockFile.sha256sum"; then
+          echo "$packageLockFile checksum does not match cache"
+          sha256sum "$packageLockFile" > "$packageLockFile.sha256sum"
+          ((resultSum+=1));
+        fi
+      fi
+    done
+
+    echo "$resultCount - $resultSum"
+    if [[ "$resultCount" -gt "0" ]]; then
+      if [[ "$resultSum" -ne "0" ]]; then
+        CI_JOB_SKIP_EXIT_CODE=218
+        exit $CI_JOB_SKIP_EXIT_CODE
+      fi
+    fi
+
+.gitlab-ci-cache.npm:
+  - CI_JOB_SKIP_EXIT_CODE=0
+  - |
+    PACKAGE_JSON_SHA256_HASH=$( sha256sum package.json | awk '{ print $1 }')
+    echo "Current sha256 hash is $PACKAGE_JSON_SHA256_HASH"
+    echo "Checking sha256 hash of package.json"
+
+    # install node packages
+    npm set progress=false && npm config set depth 0
+    npm install --omit=dev
+
+    # copy production node_modules aside
+    cp -R node_modules prod_node_modules
+
+    # install ALL node_modules, including 'devDependencies'
+    npm install
+
+    ls -lah
+    
+    if ! sha256sum -c package-lock.json.sha256sum; then
+      echo "package-lock.json checksum does not match cache"
+
+      sha256sum package-lock.json > package-lock.json.sha256sum
+      CI_JOB_SKIP_EXIT_CODE=218
+    else
+      echo "Cache is the same as before, won't update cache"
+    fi
+  - exit $CI_JOB_SKIP_EXIT_CODE

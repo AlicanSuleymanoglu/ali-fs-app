@@ -1,0 +1,432 @@
+variables:
+  CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX: "europe-west3-docker.pkg.dev/iac-dev-432418"
+  DEFAULT_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/registry-docker-io/library/docker:27.3.1"
+  DEFAULT_SERVICE_DIND_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/registry-docker-io/library/docker:27.3.1-dind"
+  AUTH_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/allo-docker-public/allo-pipeline:node20_gcloud_512"
+  BUILD_IMAGE: "europe-docker.pkg.dev/iac-dev-432418/allo-docker/allo/node:20-slim-corepack-turbo"
+  BUILD_DOCKER_FILE: Dockerfile.build-node20-corepack
+  RUNTIME_IMAGE: "europe-docker.pkg.dev/endless-gizmo-264508/allo-docker/allo/nginx:1.27.3-debian-vts"
+  RUNTIME_DOCKER_FILE: Dockerfile.runtime.nodejs
+  CONTAINER_SCANNER_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/registry-docker-io/aquasec/trivy:0.61.0"
+  MICRO_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/registry-docker-io/library/debian:12.10-slim"
+  RUNTIME_BASE_IMAGE: europe-west3-docker.pkg.dev/iac-dev-432418/registry-docker-io/library/node:20.19.0-alpine3.21
+  RUNTIME_SECRETS_INIT_IMAGE: europe-docker.pkg.dev/iac-dev-432418/allo-docker/allo/secrets-init:0.5.3-alpine-202507071028
+  PUBLISH_CONTAINER_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/gcr-io/kaniko-project/executor:v1.23.2-debug"
+  DEPLOY_KUBERNETES_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/gcr-io/google.com/cloudsdktool/cloud-sdk"
+  E2E_IMAGE: "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/mcr-microsoft-com/playwright:v1.52.0-noble"
+  START_COMMAND: "node_modules/.bin/next start"
+  NODEJS_VERSION: "20.19.0"
+  ALPINE_VERSION: "3.21"
+  TEST__NEW_RELIC_APP_ID: "0"
+  PROD__NEW_RELIC_APP_ID: "0"
+
+stages:
+  - preprepare
+  - prepare
+  - setup
+  - build
+  - e2e-test
+  - prepublish
+  - publish
+  - postpublish
+  - deploy
+  - rollback
+
+include:
+  - .src/main/gitlab-ci/gitlab-ci-authenticate-gcloud.yml
+  - .src/main/gitlab-ci/gitlab-ci-authenticate-gcloud-gke.yml
+  - .src/main/gitlab-ci/gitlab-ci-print-info.yml
+  - .src/main/gitlab-ci/gitlab-ci-print-timestamp-logging.yml
+  - .src/main/gitlab-ci/gitlab-ci-patch-kubernetes-yaml.yml
+  - .src/main/gitlab-ci/gitlab-ci-cache-npm.yml
+  - .src/main/gitlab-ci/gitlab-ci-cache-yarn.yml
+  - .src/main/gitlab-ci/gitlab-ci-security-scan-trivy.yml
+  - .src/main/gitlab-ci/gitlab-ci-k8s-deployment.yml
+
+image: $DEFAULT_IMAGE
+services:
+  - $DEFAULT_SERVICE_DIND_IMAGE
+
+# Set default config for jobs
+# see https://docs.gitlab.com/ee/ci/yaml/#default
+default:
+  retry:
+    max: 2
+    # specify retry on certain conditions
+    # see https://docs.gitlab.com/ee/ci/yaml/index.html#retrywhen
+    when:
+      - unknown_failure
+      - api_failure
+      - runner_system_failure
+      - job_execution_timeout
+      - stuck_or_timeout_failure
+
+
+.changes_salea_frontend: &changes_salea_frontend
+  - "*"
+  - .src/**/*
+  - packages/**/*
+  - apps/salea-frontend/**/*
+
+.cache_key_salea_frontend: &cache_key_salea_frontend
+                    cache-salea_frontend-$CI_COMMIT_REF_SLUG
+
+.cache_fallback_keys_salea_frontend: &cache_fallback_keys_salea_frontend
+  - cache-salea-frontend-$CI_DEFAULT_BRANCH
+
+.cache_paths_salea_frontend: &cache_paths_salea_frontend
+  - out/salea-frontend/
+
+
+.changes_salea_backend: &changes_salea_backend
+  - "*"
+  - .src/**/*
+  - packages/**/*
+  - apps/salea-backend/**/*
+
+.cache_key_salea_backend: &cache_key_salea_backend
+                    cache-salea_backend-$CI_COMMIT_REF_SLUG
+
+.cache_fallback_keys_salea_backend: &cache_fallback_keys_salea_backend
+  - cache-salea-frontend-$CI_DEFAULT_BRANCH
+
+.cache_paths_salea_backend: &cache_paths_salea_backend
+  - out/salea-backend/
+
+
+##########################################################
+#
+# PREPREPARE
+#
+##########################################################
+preprepare-gcloud-auth-access-token:
+  stage: preprepare
+  image:
+    name: $AUTH_IMAGE
+    entrypoint: [""]
+  before_script:
+    - !reference [.gitlab-ci-print-info.print_info]
+    - !reference [.gitlab-ci-print-timestamp-logging.logging]
+  script:
+    - mkdir -p ${CI_PROJECT_DIR}/.auth-tmp/
+
+    - INT_GCLOUD_PROJECT_ID=$GCLOUD_PROJECT_ID
+    - INT_GCLOUD_SA_JSON_KEY_BASE64=$ARTIFACT_REGISTRY_PUBLISHER_JSON_KEY
+    - !reference [.gitlab-ci-authenticate.gcloud]
+    - gcloud auth print-access-token --project=$INT_GCLOUD_PROJECT_ID > ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config
+    - chmod +x ${CI_PROJECT_DIR}/.src/main/docker/generateGcloudDockerAuthFile.sh
+    - ${CI_PROJECT_DIR}/.src/main/docker/generateGcloudDockerAuthFile.sh ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config.json
+
+
+    - INT_GCLOUD_PROJECT_ID=$GCLOUD_ARTIFACT_REGISTRY_NPM_PROJECT_ID
+    - INT_GCLOUD_SA_JSON_KEY_BASE64=$GCLOUD_ARTIFACT_REGISTRY_NPM_JSON_KEY_BASE64
+    - !reference [.gitlab-ci-authenticate.gcloud]
+    - gcloud auth print-access-token --project=$INT_GCLOUD_PROJECT_ID > ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token
+
+
+    - INT_GCLOUD_PROJECT_ID=$TEST__PROJECT_ID
+    - INT_GCLOUD_SA_JSON_KEY_BASE64=$TEST__ARTIFACT_REGISTRY_READER_SA_JSON_KEY_BASE64
+    - !reference [.gitlab-ci-authenticate.gcloud]
+    - gcloud auth print-access-token --project=$INT_GCLOUD_PROJECT_ID > ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token-local
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token
+      - ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token-local
+      - ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config.json
+    expire_in: 1 day
+
+
+
+preprepare-versions:
+  stage: preprepare
+  image:
+    name: $AUTH_IMAGE
+    entrypoint: [""]
+  before_script:
+    - !reference [.gitlab-ci-print-info.print_info]
+    - !reference [.gitlab-ci-print-timestamp-logging.logging]
+  script:
+    - mkdir -p ${CI_PROJECT_DIR}/.tmp/
+    - date_now=$(date -d "today" '+%Y-%m-%d-%H-%M-%S')
+    - echo $date_now
+    - CLEAN_CI_COMMIT_REF_SLUG=$(echo -n "${CI_COMMIT_REF_SLUG}" | sed 's/[^a-zA-Z0-9]/-/g' | head -c40 | sed 's/[^a-zA-Z0-9]$/x/g')
+    - CLEAN_CI_PROJECT_NAME=$(echo -n "${CI_PROJECT_NAME}" | sed 's/[^a-zA-Z0-9]/-/g')
+    - echo -n "${CLEAN_CI_COMMIT_REF_SLUG}-${date_now}-${CI_COMMIT_SHORT_SHA}"  | head -c63 | sed 's/[^a-zA-Z0-9]$/x/g' >> ${CI_PROJECT_DIR}/.tmp/release_version
+    - echo -n "${CLEAN_CI_PROJECT_NAME}" >> ${CI_PROJECT_DIR}/.tmp/service_name
+    - |
+      SERVICE_NAME_PREFIX=""
+      if grep -q "development" <<<"$CI_COMMIT_BRANCH"; then
+        SERVICE_NAME_PREFIX="development/";
+      elif grep -q "feature/" <<<"$CI_COMMIT_BRANCH"; then
+        SERVICE_NAME_PREFIX="feature/";
+      fi
+    - echo -n "${SERVICE_NAME_PREFIX}${CLEAN_CI_PROJECT_NAME}" >> ${CI_PROJECT_DIR}/.tmp/service_name_long
+    - echo -n "$(echo $(cat ${CI_PROJECT_DIR}/.tmp/service_name_long):$(cat ${CI_PROJECT_DIR}/.tmp/release_version))" >> ${CI_PROJECT_DIR}/.tmp/release_container_name
+    - echo -n "$(echo $(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)):latest" >> ${CI_PROJECT_DIR}/.tmp/latest_container_name
+
+    - cat ${CI_PROJECT_DIR}/.tmp/release_version
+    - cat ${CI_PROJECT_DIR}/.tmp/service_name
+    - cat ${CI_PROJECT_DIR}/.tmp/service_name_long
+    - cat ${CI_PROJECT_DIR}/.tmp/release_container_name
+    - cat ${CI_PROJECT_DIR}/.tmp/latest_container_name
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/.tmp/release_version
+      - ${CI_PROJECT_DIR}/.tmp/service_name
+      - ${CI_PROJECT_DIR}/.tmp/service_name_long
+      - ${CI_PROJECT_DIR}/.tmp/release_container_name
+      - ${CI_PROJECT_DIR}/.tmp/latest_container_name
+    expire_in: 1 day
+
+
+
+##########################################################
+#
+# PREPARE
+#
+##########################################################
+prepare-npmrc:
+  stage: prepare
+  image:
+    name: $AUTH_IMAGE
+    entrypoint: [""]
+  before_script:
+    - !reference [.gitlab-ci-print-info.print_info]
+    - !reference [.gitlab-ci-print-timestamp-logging.logging]
+  script:
+    - ls -lah
+    - |
+      current=$(date +%s);
+      last_modified=$(stat -c "%Y" ".npmrc" || echo 0);
+
+      if [ $((current - last_modified)) -gt 3600 ]; then
+        export JS_BUILD_PREFER_CUSTOM_REGISTRY=""
+        
+        export JS_BUILD_CUSTOM_SCOPE="allo"
+        export JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT=$GCLOUD_ARTIFACT_REGISTRY_NPM_PROJECT_ID
+        export JS_BUILD_CUSTOM_SCOPE_REGISTRY="${JS_BUILD_CUSTOM_SCOPE_REGISTRY:-https://europe-npm.pkg.dev/$JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT/allo-npm/}"
+        export JS_BUILD_CUSTOM_SCOPE_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token)
+
+        export JS_BUILD_REGISTRY_GCLOUD_PROJECT=$TEST__PROJECT_ID
+        export JS_BUILD_REGISTRY="${JS_BUILD_REGISTRY:-https://europe-west3-npm.pkg.dev/$JS_BUILD_REGISTRY_GCLOUD_PROJECT/registry-npmjs-org/}"
+        export JS_BUILD_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token-local)
+
+        . .src/main/build-helper/build-setup-only.sh
+      fi
+    - ls -lah
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/.npmrc
+    expire_in: 1 day
+  needs:
+    - job: preprepare-gcloud-auth-access-token
+      artifacts: true
+    - job: preprepare-versions
+      artifacts: true
+
+
+.build-container:
+  stage: build
+  image:
+    name: $DEFAULT_IMAGE
+    entrypoint: ["/bin/sh"]
+  services:
+    - $DEFAULT_SERVICE_DIND_IMAGE
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: tcp://localhost:2375 # localhost for kubernetes
+    #DOCKER_HOST: tcp://docker:2375 # also tried localhost here
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - !reference [.gitlab-ci-print-info.print_info]
+    - !reference [.gitlab-ci-print-timestamp-logging.logging]
+    - docker --version
+    - |
+         # Docker is accessed via unix socket on k8s runners
+         #unset DOCKER_HOST
+         #unset DOCKER_CERT_PATH
+         #unset DOCKER_TLS_VERIFY
+
+         # If docker CLI exists wait for dockerd to start
+         if command -v docker &> /dev/null; then
+           i=1; while [ $i -le 10 ]; do
+             echo "docker command found, waiting for dockerd service $i/10..."
+             (docker stats --no-stream >/dev/null 2>&1) && break
+             sleep 2
+             if [ $i -eq 10 ]; then
+               echo "WARNING docker cli detected but dockerd service not found, continuing build..."
+             fi
+             i=$(( i + 1 ))
+           done
+         fi
+  script:
+    - echo "$ARTIFACT_REGISTRY_PUBLISHER_JSON_KEY" | base64 -d -i > ~/gcloud-service-key.json
+    - cat ~/gcloud-service-key.json | docker login -u _json_key --password-stdin https://europe-docker.pkg.dev
+    - cat ~/gcloud-service-key.json | docker login -u _json_key --password-stdin https://europe-west3-docker.pkg.dev
+    - apk add bash
+    - ls -lah
+    - bash -c ./.src/main/build-helper/build-docker.sh
+  needs:
+    - job: preprepare-versions
+      artifacts: true
+    - job: prepare-npmrc
+      artifacts: true
+
+build-container-salea-frontend-development:
+  extends: .build-container
+  before_script:
+    - !reference [.build-container, before_script]
+    - export ACTIVE_PROFILE_VALUE=staging
+    - export APP_DIRECTORY="apps/salea-frontend"
+    - export BUILD_APP="salea-frontend"
+    - export BUILD_APP_IMAGE="europe-docker.pkg.dev/${GCR_PROJECT}/allo-docker/allo/$(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)/${BUILD_APP}:$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+    - export BUILD_APP_IMAGE_PUSH="x"
+  only:
+    refs:
+      - /^(master|main|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_frontend
+  cache:
+    key: *cache_key_salea_frontend
+    fallback_keys:
+      *cache_fallback_keys_salea_frontend
+    paths:
+      *cache_paths_salea_frontend
+    policy: pull-push
+  needs:
+    - !reference [.build-container, needs]
+
+
+build-container-salea-backend-development:
+  extends: .build-container
+  before_script:
+    - !reference [.build-container, before_script]
+    - export ACTIVE_PROFILE_VALUE=staging
+    - export APP_DIRECTORY="apps/salea-backend"
+    - export BUILD_APP="salea-backend"
+    - export BUILD_APP_IMAGE="europe-docker.pkg.dev/${GCR_PROJECT}/allo-docker/allo/$(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)/${BUILD_APP}:$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+    - export BUILD_APP_IMAGE_PUSH="x"
+  only:
+    refs:
+      - /^(master|main|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_backend
+  cache:
+    key: *cache_key_salea_backend
+    fallback_keys:
+      *cache_fallback_keys_salea_backend
+    paths:
+      *cache_paths_salea_backend
+    policy: pull-push
+  needs:
+    - !reference [.build-container, needs]
+
+.scan-container-common:
+  extends: .scan-container
+  stage: postpublish
+  before_script:
+    - !reference [.scan-container, before_script]
+    - export MICROSERVICE_BRANCH_OR_TAG_IMAGE="europe-docker.pkg.dev/${GCR_PROJECT}/allo-docker/allo/$(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)/${ALLO_FRONTEND_APP}:$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+  needs:
+    - job: preprepare-gcloud-auth-access-token
+      artifacts: true
+    - job: preprepare-versions
+      artifacts: true
+
+
+
+scan-container-salea-frontend-development:
+  extends: .scan-container-common
+  stage: postpublish
+  before_script:
+    - export ALLO_FRONTEND_APP="salea-frontend"
+    - !reference [.scan-container-common, before_script]
+  only:
+    refs:
+      - /^(main|master|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_frontend
+  needs:
+    - !reference [.scan-container-common, needs]
+    - job: build-container-salea-frontend-development
+      artifacts: false
+
+
+scan-container-salea-backend-development:
+  extends: .scan-container-common
+  stage: postpublish
+  before_script:
+    - export ALLO_FRONTEND_APP="salea-backend"
+    - !reference [.scan-container-common, before_script]
+  only:
+    refs:
+      - /^(main|master|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_backend
+  needs:
+    - !reference [.scan-container-common, needs]
+    - job: build-container-salea-backend-development
+      artifacts: false
+
+
+##########################################################
+#
+# DEPLOYMENT
+#
+##########################################################
+.deploy-kubernetes-development:
+  extends: .deploy-kubernetes
+  before_script:
+    - !reference [ .deploy-kubernetes, before_script ]
+
+    - INT_GCLOUD_PROJECT_ID=$TEST__PROJECT_ID
+    - INT_GCLOUD_SA_JSON_KEY_BASE64=$TEST__K8S_SA_JSON_KEY_BASE64
+    - INT_GCLOUD_REGION=$TEST__K8S_COMPUTE_REGION
+    - INT_GCLOUD_CLUSTER_NAME=$TEST__K8S_CLUSTER_NAME
+
+    - INT_ENV_ENVIRONMENT="staging"
+    - INT_SERVICE_VERSION="$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+    - INT_SERVICE_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/service_name)-${ALLO_FRONTEND_APP}"
+    #- INT_SERVICE_IMAGE="europe-docker.pkg.dev/${TEST__PROJECT_ID}/allo-docker/allo/$(cat ${CI_PROJECT_DIR}/.tmp/release_container_name)"
+    - INT_SERVICE_IMAGE="europe-docker.pkg.dev/${TEST__PROJECT_ID}/allo-docker/allo/$(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)/${ALLO_FRONTEND_APP}:$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+    - K8S_NEW_RELIC_SUPPORT=""
+    - INT_NEW_RELIC_APP_ID=${TEST__NEW_RELIC_APP_ID}
+    - INT_NEW_RELIC_APP_DEPLOYMENT_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/release_container_name)"
+  
+  needs:
+    - job: preprepare-gcloud-auth-access-token
+      artifacts: true
+    - job: preprepare-versions
+      artifacts: true
+
+deploy-kubernetes-development-salea-frontend:
+  extends: .deploy-kubernetes-development
+  before_script:
+    - ALLO_FRONTEND_APP="salea-frontend"
+    - INT_KUBERNETES_FILE_INPUT_NAME="${CI_PROJECT_DIR}/apps/${ALLO_FRONTEND_APP}/.k8s/kubernetes.yaml"
+    - !reference [ .deploy-kubernetes-development, before_script ]
+  only:
+    refs:
+      - /^(main|master|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_frontend
+  needs:
+    - !reference [ .deploy-kubernetes-development, needs ]
+    - job: build-container-salea-frontend-development
+      artifacts: false
+
+deploy-kubernetes-development-salea-backend:
+  extends: .deploy-kubernetes-development
+  before_script:
+    - ALLO_FRONTEND_APP="salea-backend"
+    - INT_KUBERNETES_FILE_INPUT_NAME="${CI_PROJECT_DIR}/apps/${ALLO_FRONTEND_APP}/.k8s/kubernetes.yaml"
+    - !reference [ .deploy-kubernetes-development, before_script ]
+  only:
+    refs:
+      - /^(main|master|dev|development|feature\/.+)$/
+    changes:
+      *changes_salea_backend
+  needs:
+    - !reference [ .deploy-kubernetes-development, needs ]
+    - job: build-container-salea-backend-development
+      artifacts: false

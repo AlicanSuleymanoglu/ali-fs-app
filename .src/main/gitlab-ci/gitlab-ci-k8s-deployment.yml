@@ -1,0 +1,72 @@
+---
+.deploy-kubernetes:
+  stage: deploy
+  image:
+    name: ${DEPLOY_KUBERNETES_IMAGE}
+    entrypoint: [ "" ]
+  variables:
+    K8S_NAMESPACE: "default"
+    INT_KUBERNETES_FILE_INPUT_NAME: "${CI_PROJECT_DIR}/.src/main/k8s/kubernetes.yaml"
+    INT_KUBERNETES_FILE_OUTPUT_NAME: kubernetes-out.yaml
+
+    # new relic support variables
+    K8S_NEW_RELIC_SUPPORT: "x"
+    INT_NEW_RELIC_APP_ID:
+    NEW_RELIC_API_KEY:
+    INT_NEW_RELIC_APP_DEPLOYMENT_NAME:
+
+    # cluster auth variables
+    GOOGLE_APPLICATION_CREDENTIALS: "${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config.json"
+    INT_GCLOUD_PROJECT_ID:
+    INT_GCLOUD_SA_JSON_KEY_BASE64:
+    INT_GCLOUD_REGION:
+    INT_GCLOUD_CLUSTER_NAME:
+
+  allow_failure:
+    exit_codes: 219
+  before_script:
+    # print out general job info
+    - !reference [.gitlab-ci-print-info.print_info]
+    # enable timestamp logging in console
+    #- !reference [.gitlab-ci-print-timestamp-logging.logging]
+
+    - INT_SERVICE_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/service_name)"
+    - INT_SERVICE_VERSION="$(cat ${CI_PROJECT_DIR}/.tmp/release_version)"
+    - |
+      if [[ -f ${CI_PROJECT_DIR}/.tmp/new_relic_service_name && -s ${CI_PROJECT_DIR}/.tmp/new_relic_service_name ]];then
+        INT_ENV_SERVICE_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/new_relic_service_name)"
+        INT_NEW_RELIC_APP_DEPLOYMENT_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/release_container_name)"
+      fi
+
+    # required for envsubst to work
+    - apt-get -y install gettext
+  script:
+    # patching the deployment
+    - !reference [.gitlab-ci-patch.kubernetes-yaml]
+
+    # authenticate to gke
+    - !reference [.gitlab-ci-authenticate.gcloud-gke]
+
+    # deploy
+    - kubectl -n ${K8S_NAMESPACE} apply -f kubernetes-out.yaml
+
+    # new relic webhook can be triggered
+    - |
+      if [[ -n ${K8S_NEW_RELIC_SUPPORT} ]];then
+        if [[ -z ${INT_NEW_RELIC_APP_ID} ]];then echo "new relic support is enabled but new relic app id is not set; will ignore new relic webhook"; break; fi;
+        if [[ -z ${NEW_RELIC_API_KEY} ]];then echo "new relic support is enabled but new relic api key is not set; will ignore new relic webhook"; break; fi;
+        if [[ -z ${INT_NEW_RELIC_APP_DEPLOYMENT_NAME} ]];then echo "new relic support is enabled but new relic revision is not set; will ignore new relic webhook"; break; fi;
+        curl -X POST "https://api.eu.newrelic.com/v2/applications/${INT_NEW_RELIC_APP_ID}/deployments.json" -H "Api-Key:${NEW_RELIC_API_KEY}" -H "Content-Type:application/json" -d "{\"deployment\":{\"revision\":\"${INT_NEW_RELIC_APP_DEPLOYMENT_NAME}\"}}"
+      fi
+
+    - kubectl -n ${K8S_NAMESPACE} annotate deployment/$INT_SERVICE_NAME kubernetes.io/change-cause="$CI_COMMIT_AUTHOR - $CI_COMMIT_REF_SLUG - $CI_JOB_URL - $INT_SERVICE_VERSION"
+    - sleep 5
+    - |
+      echo ------------------
+      echo -
+      echo - current history deployed of $INT_SERVICE_NAME
+      echo - 
+      kubectl -n ${K8S_NAMESPACE} rollout history deployment/$INT_SERVICE_NAME
+      echo -
+      echo -
+      echo ------------------

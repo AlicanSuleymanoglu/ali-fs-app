@@ -1,0 +1,16 @@
+---
+.gitlab-ci-authenticate.gcloud:
+  - |
+    gcloud -v >/dev/null 2>&1 || { echo >&2 "E: I require gcloud but it's not installed. Aborting."; exit 1; }
+  - |
+    if [ -z ${INT_GCLOUD_PROJECT_ID+x} ]; then echo "E: I require INT_GCLOUD_PROJECT_ID to be set. Aborting."; exit 1; fi
+  - |
+    if [ -z ${INT_GCLOUD_SA_JSON_KEY_BASE64+x} ]; then echo "E: I require INT_GCLOUD_SA_JSON_KEY_BASE64 to be set. Aborting."; exit 1; fi
+  - |
+    mkdir -p ${CI_PROJECT_DIR}/.tmp/
+    echo ${INT_GCLOUD_SA_JSON_KEY_BASE64} | base64 -d -i > ${CI_PROJECT_DIR}/.tmp/gcloud-service-key.json
+    gcloud auth activate-service-account --key-file ${CI_PROJECT_DIR}/.tmp/gcloud-service-key.json
+    gcloud config set project ${INT_GCLOUD_PROJECT_ID}
+    gcloud auth configure-docker europe-west3-docker.pkg.dev
+    export GOOGLE_APPLICATION_CREDENTIALS=${CI_PROJECT_DIR}/.tmp/gcloud-service-key.json
+
