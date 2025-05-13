@@ -25,7 +25,7 @@ const FollowUpOutcome: React.FC = () => {
   const location = useLocation();
   const isHotDeal = location.state?.isHotDeal || false;
   const dealId = location.state?.dealId || null;
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
   const { meetings } = useMeetingContext();

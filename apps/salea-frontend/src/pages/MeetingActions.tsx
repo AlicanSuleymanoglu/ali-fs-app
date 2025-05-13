@@ -31,7 +31,7 @@ const MeetingActions: React.FC = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const { meetings } = useMeetingContext(); // ✅ use context
   const [meetingDetails, setMeetingDetails] = useState<any | null>(null);
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);

@@ -30,7 +30,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const [showDisqualifyDialog, setShowDisqualifyDialog] = useState(false);
   const [newDueDate, setNewDueDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
 

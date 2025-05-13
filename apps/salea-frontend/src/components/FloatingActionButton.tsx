@@ -39,7 +39,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const { meetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   const handleCreateMeeting = () => {
     setIsCreateMeetingDialogOpen(true);

@@ -42,7 +42,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
   const calendarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
   const START_HOUR = 8;

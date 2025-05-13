@@ -15,7 +15,7 @@ export const useTasks = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const user = useUser();
-    const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
     const unreadCount = tasks.filter((task) => !task.isRead).length;
 

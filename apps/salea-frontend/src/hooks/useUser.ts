@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 export interface HubspotUser {
@@ -9,7 +8,7 @@ export interface HubspotUser {
 
 export function useUser() {
     const [user, setUser] = useState<HubspotUser | null>(null);
-    const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
     useEffect(() => {
         fetch(`${BASE_URL}/api/me`, { credentials: "include" })
