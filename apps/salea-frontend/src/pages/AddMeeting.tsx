@@ -38,6 +38,7 @@ const AddMeeting: React.FC = () => {
     isFollowUp ? "Sales Followup" : (prefilledData.meetingType || "Sales Meeting")
   );
   const [notes, setNotes] = useState(prefilledData.notes || "");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Check if company selection is forced
   const forceCompany = prefilledData.forceCompany || false;
@@ -187,6 +188,12 @@ const AddMeeting: React.FC = () => {
     }
   };
 
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      setDate(selectedDate);
+      setIsCalendarOpen(false);
+    }
+  };
 
   const generateTimeOptions = () => {
     const options = [];
@@ -205,6 +212,18 @@ const AddMeeting: React.FC = () => {
       }
     }
     return options;
+  };
+
+  // Fixing linter errors
+
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = (e.target as HTMLSelectElement).value;
+    setStartTime(value);
+  };
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = (e.target as HTMLTextAreaElement).value;
+    setNotes(value);
   };
 
   // UI logic
@@ -287,7 +306,7 @@ const AddMeeting: React.FC = () => {
 
               <div className="space-y-2 md:col-span-2">
                 <Label>Date <span className="text-red-500">*</span></Label>
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -295,6 +314,7 @@ const AddMeeting: React.FC = () => {
                         "w-full justify-start text-left font-normal",
                         !date && "text-muted-foreground"
                       )}
+                      onClick={() => setIsCalendarOpen(true)}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, "dd.MM.yyyy") : <span>Select date</span>}
@@ -304,7 +324,7 @@ const AddMeeting: React.FC = () => {
                     <Calendar
                       mode="single"
                       selected={date}
-                      onSelect={setDate}
+                      onSelect={handleDateSelect}
                       initialFocus
                       className="pointer-events-auto"
                     />
@@ -318,7 +338,7 @@ const AddMeeting: React.FC = () => {
                   id="start-time"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={handleStartTimeChange}
                   required
                 >
                   <option value="" disabled>Select time</option>
@@ -332,7 +352,7 @@ const AddMeeting: React.FC = () => {
                   id="notes"
                   placeholder="Add any internal notes about this meeting"
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={handleNotesChange}
                   className="min-h-[100px]"
                 />
               </div>

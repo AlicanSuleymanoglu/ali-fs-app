@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog.tsx";
 import { Button } from "../components/ui/button.tsx";
 import ContactSearch, { Contact } from './ContactSearch.tsx';
+import AddNewCompanyPopup from './AddNewCompanyPopup.tsx';
 
 export interface Company {
   id: string;
@@ -157,7 +158,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
   const debouncedSearch = useCallback(debounce(searchCompanies, 300), []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = (e.target as HTMLInputElement).value;
+    const term = e.target.value;
     setSearchTerm(term);
     debouncedSearch(term);
   };
@@ -272,111 +273,15 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
   };
 
   const handleAddNewCompanyClick = () => {
-    setNewCompany({
-      name: searchTerm,
-      street: '',
-      city: '',
-      postalCode: '',
-      state: '',
-      cuisine: '',
-      fullAddress: ''
-    });
     setShowAddCompanyDialog(true);
     setShowResults(false);
   };
 
-  const handleNewCompanyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target as HTMLInputElement;
-    setNewCompany(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleCreateCompany = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate form
-    if (!newCompany.name || !newCompany.street || !newCompany.city || !newCompany.postalCode) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // 1. Create company
-      const companyPayload = {
-        name: newCompany.name,
-        street: newCompany.street,
-        city: newCompany.city,
-        postalCode: newCompany.postalCode,
-        state: newCompany.state || 'N/A',
-        cuisine: newCompany.cuisine,
-      };
-
-      const companyRes = await fetch(`${BASE_URL}/api/companies/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(companyPayload)
-      });
-
-      if (!companyRes.ok) {
-        throw new Error("Failed to create company");
-      }
-
-      const company = await companyRes.json();
-
-      // 2. Automatically create a deal for the new company
-      const dealPayload = {
-        dealName: `${company.name} - New Deal`,
-        pipeline: "default", // pipeline ID
-        stage: "appointmentscheduled", // stage ID
-        companyId: company.id
-      };
-
-      const dealRes = await fetch(`${BASE_URL}/api/hubspot/deals/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(dealPayload)
-      });
-
-      if (!dealRes.ok) {
-        throw new Error("Failed to create deal for new company");
-      }
-
-      const deal = await dealRes.json();
-
-      // 3. Prepare to check/create contact
-      setShowAddCompanyDialog(false);
-
-      // Prepare prefilled contact information for the new company
-      const companyNameForEmail = company.name.toLowerCase().replace(/\s+/g, '');
-      setSelectedContact({
-        firstName: "Test",
-        lastName: company.name,
-        email: `test.${companyNameForEmail}@allo.com`,
-        phone: '',
-      });
-
-      setSelectedCompanyForDialog({
-        id: company.id,
-        name: company.name,
-        address: `${company.street}, ${company.city}, ${company.postalCode}`,
-        dealId: deal.id
-      });
-
-      toast.success("Company created with new deal");
-
-      // Show the contact creation dialog
-      setShowContactSearch(true);
-    } catch (err) {
-      console.error("❌ Failed to create company:", err);
-      toast.error("Could not create company");
-      setLoading(false);
-    }
+  const handleCreateCompany = (companyData: any) => {
+    // Logic to handle the newly created company
+    // For example, you might want to select this company or update the list
+    console.log('New company created:', companyData);
+    toast.success('Company created successfully');
   };
 
   useEffect(() => {
@@ -476,104 +381,11 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         </DialogContent>
       </Dialog>
 
-      {/* Add New Company Dialog (adding this for test reasons) */}
-      <Dialog open={showAddCompanyDialog} onOpenChange={setShowAddCompanyDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add New Restaurant</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateCompany} className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="company-name">Restaurant Name <span className="text-red-500">*</span></Label>
-              <Input
-                id="company-name"
-                name="name"
-                value={newCompany.name}
-                onChange={handleNewCompanyChange}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company-address">Address <span className="text-red-500">*</span></Label>
-              <Input
-                id="company-address"
-                placeholder="Search address..."
-                ref={addressInputRef}
-                className="mb-2"
-              />
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company-street">Street Address <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="company-street"
-                    name="street"
-                    value={newCompany.street}
-                    onChange={handleNewCompanyChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-city">City <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="company-city"
-                    name="city"
-                    value={newCompany.city}
-                    onChange={handleNewCompanyChange}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company-postal">Postal Code <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="company-postal"
-                    name="postalCode"
-                    value={newCompany.postalCode}
-                    onChange={handleNewCompanyChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-state">State</Label>
-                  <Input
-                    id="company-state"
-                    name="state"
-                    value={newCompany.state}
-                    onChange={handleNewCompanyChange}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company-cuisine">Cuisine</Label>
-              <Input
-                id="company-cuisine"
-                name="cuisine"
-                value={newCompany.cuisine}
-                onChange={handleNewCompanyChange}
-                placeholder="e.g. Italian, Mediterranean, American..."
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddCompanyDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create Restaurant"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddNewCompanyPopup
+        isOpen={showAddCompanyDialog}
+        onClose={() => setShowAddCompanyDialog(false)}
+        onCreateCompany={handleCreateCompany}
+      />
     </div>
   );
 };

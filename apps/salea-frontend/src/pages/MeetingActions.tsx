@@ -134,9 +134,13 @@ const MeetingActions: React.FC = () => {
             <p className="font-medium">{meetingDetails.contactName}</p>
           </div>
           <div className="py-2">
-            <p className="text-sm text-gray-500">Date &amp; Time</p>
+            <p className="text-sm text-gray-500">Phone Number</p>
+            <p className="font-medium">{meetingDetails.contactPhone}</p>
+          </div>
+          <div className="py-2">
+            <p className="text-sm text-gray-500">Time</p>
             <p className="font-medium">
-              {meetingDetails.date} • {new Date(meetingDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {new Date(meetingDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {' - '}
               {new Date(meetingDetails.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
@@ -152,12 +156,6 @@ const MeetingActions: React.FC = () => {
               <p className="font-medium text-gray-400">No internal notes available</p>
             )}
           </div>
-          <div className="py-2">
-            <p className="text-sm text-gray-500">Status</p>
-            <p className="font-medium capitalize">{meetingDetails.status}</p>
-          </div>
-
-
           <div className={`mt-6 ${isMobile ? 'flex flex-col space-y-3' : 'grid grid-cols-3 gap-3'}`}>
             <Button
               className="flex items-center justify-center py-2 bg-red-600 hover:bg-red-700 text-white"
