@@ -42,12 +42,6 @@ app.use(session({
     sameSite: 'lax'
   }
 }));
-
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8080'],
-  credentials: true
-}));
-
 // 🔐 Login
 app.get('/auth/login', (req, res) => {
   const authUrl = `https://app.hubspot.com/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPES}&redirect_uri=${REDIRECT_URI}`;
@@ -465,7 +459,7 @@ app.post('/api/meeting/:id/cancel', async (req, res) => {
         hs_meeting_outcome: "CANCELED"
       }
     });
-
+    console.log("Checking basicApi:", typeof hubspotClient.crm.objects.meetings.basicApi);
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to cancel meeting:", err.response?.data || err.message);
