@@ -17,7 +17,7 @@ console.log("AddMeeting mounted");
 const AddMeeting: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
 
   // Detect reschedule/followup
   const isRescheduling = location.pathname.includes('reschedule') ||
