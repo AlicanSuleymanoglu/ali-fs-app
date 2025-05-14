@@ -34,6 +34,8 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
   const [newContact, setNewContact] = useState({
     firstName: '',
     lastName: '',
@@ -47,12 +49,16 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
   }, [value]);
 
   const searchContacts = async (term: string) => {
-    if (!selectedCompany || !term || term.length < 2) return;
+    if (!selectedCompany || !term || term.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(term)}`, {
-        method: "GET",
+      const res = await fetch(`${BASE_URL}/api/contacts/search?q=${encodeURIComponent(term)}`, {
         credentials: "include",
       });
 
@@ -60,31 +66,74 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
 
       const data = await res.json();
       setSearchResults(data.results);
+      // Only show results if we have any
+      if (data.results && data.results.length > 0) {
+        setShowResults(true);
+      } else {
+        setShowResults(false);
+      }
     } catch (error) {
       console.error("Error searching contacts:", error);
       toast.error("Failed to search contacts");
+      setShowResults(false);
     } finally {
       setLoading(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value;
+    const input = e.target as HTMLInputElement;
+    const term = input.value;
     setSearchTerm(term);
     searchContacts(term);
   };
 
   const handleSelectContact = (contact: Contact) => {
-    onSelect(contact);
-    setSearchTerm(contact.fullName);
+    onSelect(contact);  // Store the contact in state or pass it to the parent component
+
+    // Now, associate this contact with the selected company in HubSpot
+    if (selectedCompany) {
+      const payload = {
+        contactId: contact.id,
+      };
+
+      fetch(`${BASE_URL}/api/companies/${selectedCompany.id}/associate-contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Ensures that the cookie/session is sent along with the request
+        body: JSON.stringify(payload),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to associate contact');
+          }
+          return response.json();  // Parse the response as JSON only if the response is OK
+        })
+        .then((data) => {
+          if (data.success) {
+            toast.success('Contact successfully associated with the company!');
+          } else {
+            toast.error('Failed to associate the contact.');
+          }
+        })
+        .catch((err) => {
+          console.error('Error associating contact:', err);
+          toast.error('Error associating contact.');
+        });
+    }
   };
+
+
 
   const handleAddContact = () => {
     setShowAddDialog(true);
   };
 
   const handleNewContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const input = e.target as HTMLInputElement;
+    const { name, value } = input;
     setNewContact((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -126,11 +175,20 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
           onChange={handleInputChange}
           disabled={disabled || !selectedCompany}
           className="pl-9"
+          onFocus={() => {
+            if (searchTerm.trim().length >= 2) {
+              setShowResults(true);
+              searchContacts(searchTerm);
+            }
+          }}
+          onBlur={() => {
+            setTimeout(() => setShowResults(false), 200);
+          }}
         />
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
       </div>
 
-      {searchResults.length > 0 && (
+      {showResults && searchResults.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {searchResults.map((contact) => (
             <div

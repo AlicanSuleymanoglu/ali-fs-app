@@ -193,8 +193,14 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
 
   const handleContactSearchSelect = (contact: Contact) => {
     setSelectedContact(contact);
-    setShowContactSearch(false);
-    onSelectRef.current({ ...selectedCompanyForDialog, contactId: contact.id || '' });
+    // When a contact is selected, update the company with the contact ID
+    if (selectedCompanyForDialog) {
+      const updatedCompany = {
+        ...selectedCompanyForDialog,
+        contactId: contact.id || ''
+      };
+      onSelectRef.current(updatedCompany);
+    }
   };
 
   const handleSelectCompany = async (company: Company) => {
@@ -351,6 +357,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         <ContactSearch
           onSelect={handleContactSearchSelect}
           selectedCompany={selectedCompanyForDialog}
+          value={selectedContact}
           disabled={false}
         />
       )}

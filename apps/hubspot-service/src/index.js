@@ -1207,8 +1207,6 @@ app.patch('/api/deal/:dealId/in-negotiation', async (req, res) => {
 
 
 
-
-// contact search
 app.get('/api/contacts/search', async (req, res) => {
   const token = req.session.accessToken;
   const query = req.query.q;
@@ -1219,27 +1217,12 @@ app.get('/api/contacts/search', async (req, res) => {
   const hubspotClient = new Client({ accessToken: token });
 
   try {
-    const searchPayload = {
+    const result = await hubspotClient.crm.contacts.searchApi.doSearch({
       filterGroups: [
         {
           filters: [
             {
-              propertyName: 'firstname',
-              operator: 'CONTAINS_TOKEN',
-              value: query
-            },
-            {
               propertyName: 'lastname',
-              operator: 'CONTAINS_TOKEN',
-              value: query
-            },
-            {
-              propertyName: 'email',
-              operator: 'CONTAINS_TOKEN',
-              value: query
-            },
-            {
-              propertyName: 'phone',
               operator: 'CONTAINS_TOKEN',
               value: query
             }
@@ -1248,9 +1231,10 @@ app.get('/api/contacts/search', async (req, res) => {
       ],
       properties: ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company'],
       limit: 20,
-    };
+    });
 
-    const result = await hubspotClient.crm.contacts.searchApi.doSearch(searchPayload);
+
+    console.log('HubSpot API Response:', result);  // Add this log to debug
 
     const contacts = result.results.map((c) => ({
       id: c.id,
@@ -1269,6 +1253,9 @@ app.get('/api/contacts/search', async (req, res) => {
     res.status(500).json({ error: "Search failed" });
   }
 });
+
+
+
 
 
 // Set Deal as Hot Deal
@@ -1392,4 +1379,42 @@ app.post('/api/companies/create', async (req, res) => {
 
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
+});
+
+
+// Endpoint to associate a contact with a company
+app.post('/api/companies/:companyId/associate-contact', async (req, res) => {
+  const token = req.session.accessToken;
+  const { companyId } = req.params;
+  const { contactId } = req.body;  // Ensure that contactId is sent in the request body
+
+  if (!token) {
+    return res.status(401).send('Not authenticated');
+  }
+
+  if (!contactId || !companyId) {
+    return res.status(400).send('Missing required parameters');
+  }
+
+  try {
+    // Step 2: Use axios to call v4 endpoint for default association
+    await axios.put(
+      `https://api.hubapi.com/crm/v4/objects/contact/${contactId}/associations/default/company/${companyId}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    // Successfully associated contact with company
+    console.log("✅ Contact created and associated:", contactId);
+    res.json({ success: true, id: contactId });
+  } catch (err) {
+    // Handle error from HubSpot API or any other error
+    console.error("❌ Failed to create or associate contact:", err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to create or associate contact', details: err.response?.data || err.message });
+  }
 });
