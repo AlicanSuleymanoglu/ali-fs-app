@@ -19,7 +19,12 @@ variables:
   ALPINE_VERSION: "3.21"
   TEST__NEW_RELIC_APP_ID: "0"
   PROD__NEW_RELIC_APP_ID: "0"
-
+  BUILD_CLEAR_CACHE: # put x if you want to have the cache cleared out
+    value: ""
+    options:
+      - "x"
+      - ""
+    description: "clear cache before build"
 stages:
   - preprepare
   - prepare
@@ -61,15 +66,13 @@ default:
       - job_execution_timeout
       - stuck_or_timeout_failure
 
-
 .changes_hubspot_ui: &changes_hubspot_ui
   - "*"
   - .src/**/*
   - packages/**/*
   - apps/hubspot-ui/**/*
 
-.cache_key_hubspot_ui: &cache_key_hubspot_ui
-                    cache-hubspot_ui-$CI_COMMIT_REF_SLUG
+.cache_key_hubspot_ui: &cache_key_hubspot_ui cache-hubspot_ui-$CI_COMMIT_REF_SLUG
 
 .cache_fallback_keys_hubspot_ui: &cache_fallback_keys_hubspot_ui
   - cache-hubspot-ui-$CI_DEFAULT_BRANCH
@@ -77,22 +80,19 @@ default:
 .cache_paths_hubspot_ui: &cache_paths_hubspot_ui
   - out/hubspot-ui/
 
-
 .changes_hubspot_service: &changes_hubspot_service
   - "*"
   - .src/**/*
   - packages/**/*
   - apps/hubspot-service/**/*
 
-.cache_key_hubspot_service: &cache_key_hubspot_service
-                    cache-hubspot_service-$CI_COMMIT_REF_SLUG
+.cache_key_hubspot_service: &cache_key_hubspot_service cache-hubspot_service-$CI_COMMIT_REF_SLUG
 
 .cache_fallback_keys_hubspot_service: &cache_fallback_keys_hubspot_service
   - cache-hubspot-ui-$CI_DEFAULT_BRANCH
 
 .cache_paths_hubspot_service: &cache_paths_hubspot_service
   - out/hubspot-service/
-
 
 ##########################################################
 #
@@ -117,12 +117,10 @@ preprepare-gcloud-auth-access-token:
     - chmod +x ${CI_PROJECT_DIR}/.src/main/docker/generateGcloudDockerAuthFile.sh
     - ${CI_PROJECT_DIR}/.src/main/docker/generateGcloudDockerAuthFile.sh ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config.json
 
-
     - INT_GCLOUD_PROJECT_ID=$GCLOUD_ARTIFACT_REGISTRY_NPM_PROJECT_ID
     - INT_GCLOUD_SA_JSON_KEY_BASE64=$GCLOUD_ARTIFACT_REGISTRY_NPM_JSON_KEY_BASE64
     - !reference [.gitlab-ci-authenticate.gcloud]
     - gcloud auth print-access-token --project=$INT_GCLOUD_PROJECT_ID > ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token
-
 
     - INT_GCLOUD_PROJECT_ID=$TEST__PROJECT_ID
     - INT_GCLOUD_SA_JSON_KEY_BASE64=$TEST__ARTIFACT_REGISTRY_READER_SA_JSON_KEY_BASE64
@@ -134,8 +132,6 @@ preprepare-gcloud-auth-access-token:
       - ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-access-token-local
       - ${CI_PROJECT_DIR}/.auth-tmp/.gcloud-auth-docker-config.json
     expire_in: 1 day
-
-
 
 preprepare-versions:
   stage: preprepare
@@ -154,12 +150,12 @@ preprepare-versions:
     - echo -n "${CLEAN_CI_COMMIT_REF_SLUG}-${date_now}-${CI_COMMIT_SHORT_SHA}"  | head -c63 | sed 's/[^a-zA-Z0-9]$/x/g' >> ${CI_PROJECT_DIR}/.tmp/release_version
     - echo -n "${CLEAN_CI_PROJECT_NAME}" >> ${CI_PROJECT_DIR}/.tmp/service_name
     - |
-      SERVICE_NAME_PREFIX=""
-      if grep -q "development" <<<"$CI_COMMIT_BRANCH"; then
-        SERVICE_NAME_PREFIX="development/";
-      elif grep -q "feature/" <<<"$CI_COMMIT_BRANCH"; then
-        SERVICE_NAME_PREFIX="feature/";
-      fi
+        SERVICE_NAME_PREFIX=""
+        if grep -q "development" <<<"$CI_COMMIT_BRANCH"; then
+          SERVICE_NAME_PREFIX="development/";
+        elif grep -q "feature/" <<<"$CI_COMMIT_BRANCH"; then
+          SERVICE_NAME_PREFIX="feature/";
+        fi
     - echo -n "${SERVICE_NAME_PREFIX}${CLEAN_CI_PROJECT_NAME}" >> ${CI_PROJECT_DIR}/.tmp/service_name_long
     - echo -n "$(echo $(cat ${CI_PROJECT_DIR}/.tmp/service_name_long):$(cat ${CI_PROJECT_DIR}/.tmp/release_version))" >> ${CI_PROJECT_DIR}/.tmp/release_container_name
     - echo -n "$(echo $(cat ${CI_PROJECT_DIR}/.tmp/service_name_long)):latest" >> ${CI_PROJECT_DIR}/.tmp/latest_container_name
@@ -178,8 +174,6 @@ preprepare-versions:
       - ${CI_PROJECT_DIR}/.tmp/latest_container_name
     expire_in: 1 day
 
-
-
 ##########################################################
 #
 # PREPARE
@@ -196,23 +190,23 @@ prepare-npmrc:
   script:
     - ls -lah
     - |
-      current=$(date +%s);
-      last_modified=$(stat -c "%Y" ".npmrc" || echo 0);
+        current=$(date +%s);
+        last_modified=$(stat -c "%Y" ".npmrc" || echo 0);
 
-      if [ $((current - last_modified)) -gt 3600 ]; then
-        export JS_BUILD_PREFER_CUSTOM_REGISTRY=""
-        
-        export JS_BUILD_CUSTOM_SCOPE="allo"
-        export JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT=$GCLOUD_ARTIFACT_REGISTRY_NPM_PROJECT_ID
-        export JS_BUILD_CUSTOM_SCOPE_REGISTRY="${JS_BUILD_CUSTOM_SCOPE_REGISTRY:-https://europe-npm.pkg.dev/$JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT/allo-npm/}"
-        export JS_BUILD_CUSTOM_SCOPE_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token)
+        if [ $((current - last_modified)) -gt 3600 ]; then
+          export JS_BUILD_PREFER_CUSTOM_REGISTRY=""
 
-        export JS_BUILD_REGISTRY_GCLOUD_PROJECT=$TEST__PROJECT_ID
-        export JS_BUILD_REGISTRY="${JS_BUILD_REGISTRY:-https://europe-west3-npm.pkg.dev/$JS_BUILD_REGISTRY_GCLOUD_PROJECT/registry-npmjs-org/}"
-        export JS_BUILD_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token-local)
+          export JS_BUILD_CUSTOM_SCOPE="allo"
+          export JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT=$GCLOUD_ARTIFACT_REGISTRY_NPM_PROJECT_ID
+          export JS_BUILD_CUSTOM_SCOPE_REGISTRY="${JS_BUILD_CUSTOM_SCOPE_REGISTRY:-https://europe-npm.pkg.dev/$JS_BUILD_CUSTOM_SCOPE_REGISTRY_GCLOUD_PROJECT/allo-npm/}"
+          export JS_BUILD_CUSTOM_SCOPE_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token)
 
-        . .src/main/build-helper/build-setup-only.sh
-      fi
+          export JS_BUILD_REGISTRY_GCLOUD_PROJECT=$TEST__PROJECT_ID
+          export JS_BUILD_REGISTRY="${JS_BUILD_REGISTRY:-https://europe-west3-npm.pkg.dev/$JS_BUILD_REGISTRY_GCLOUD_PROJECT/registry-npmjs-org/}"
+          export JS_BUILD_REGISTRY_AUTHTOKEN=$(cat .auth-tmp/.gcloud-auth-access-token-local)
+
+          . .src/main/build-helper/build-setup-only.sh
+        fi
     - ls -lah
   artifacts:
     paths:
@@ -223,7 +217,6 @@ prepare-npmrc:
       artifacts: true
     - job: preprepare-versions
       artifacts: true
-
 
 .build-container:
   stage: build
@@ -242,28 +235,29 @@ prepare-npmrc:
     - !reference [.gitlab-ci-print-timestamp-logging.logging]
     - docker --version
     - |
-         # Docker is accessed via unix socket on k8s runners
-         #unset DOCKER_HOST
-         #unset DOCKER_CERT_PATH
-         #unset DOCKER_TLS_VERIFY
+        # Docker is accessed via unix socket on k8s runners
+        #unset DOCKER_HOST
+        #unset DOCKER_CERT_PATH
+        #unset DOCKER_TLS_VERIFY
 
-         # If docker CLI exists wait for dockerd to start
-         if command -v docker &> /dev/null; then
-           i=1; while [ $i -le 10 ]; do
-             echo "docker command found, waiting for dockerd service $i/10..."
-             (docker stats --no-stream >/dev/null 2>&1) && break
-             sleep 2
-             if [ $i -eq 10 ]; then
-               echo "WARNING docker cli detected but dockerd service not found, continuing build..."
-             fi
-             i=$(( i + 1 ))
-           done
-         fi
+        # If docker CLI exists wait for dockerd to start
+        if command -v docker &> /dev/null; then
+          i=1; while [ $i -le 10 ]; do
+            echo "docker command found, waiting for dockerd service $i/10..."
+            (docker stats --no-stream >/dev/null 2>&1) && break
+            sleep 2
+            if [ $i -eq 10 ]; then
+              echo "WARNING docker cli detected but dockerd service not found, continuing build..."
+            fi
+            i=$(( i + 1 ))
+          done
+        fi
   script:
     - echo "$ARTIFACT_REGISTRY_PUBLISHER_JSON_KEY" | base64 -d -i > ~/gcloud-service-key.json
     - cat ~/gcloud-service-key.json | docker login -u _json_key --password-stdin https://europe-docker.pkg.dev
     - cat ~/gcloud-service-key.json | docker login -u _json_key --password-stdin https://europe-west3-docker.pkg.dev
     - apk add bash
+    - if [[ ! -z ${BUILD_CLEAR_CACHE} ]];then rm -rf out; fi;
     - ls -lah
     - bash -c ./.src/main/build-helper/build-docker.sh
   needs:
@@ -295,7 +289,6 @@ build-container-hubspot-ui-development:
     policy: pull-push
   needs:
     - !reference [.build-container, needs]
-
 
 build-container-hubspot-service-development:
   extends: .build-container
@@ -333,8 +326,6 @@ build-container-hubspot-service-development:
     - job: preprepare-versions
       artifacts: true
 
-
-
 scan-container-hubspot-ui-development:
   extends: .scan-container-common
   stage: postpublish
@@ -350,7 +341,6 @@ scan-container-hubspot-ui-development:
     - !reference [.scan-container-common, needs]
     - job: build-container-hubspot-ui-development
       artifacts: false
-
 
 scan-container-hubspot-service-development:
   extends: .scan-container-common
@@ -368,7 +358,6 @@ scan-container-hubspot-service-development:
     - job: build-container-hubspot-service-development
       artifacts: false
 
-
 ##########################################################
 #
 # DEPLOYMENT
@@ -377,7 +366,7 @@ scan-container-hubspot-service-development:
 .deploy-kubernetes-development:
   extends: .deploy-kubernetes
   before_script:
-    - !reference [ .deploy-kubernetes, before_script ]
+    - !reference [.deploy-kubernetes, before_script]
 
     - INT_GCLOUD_PROJECT_ID=$TEST__PROJECT_ID
     - INT_GCLOUD_SA_JSON_KEY_BASE64=$TEST__K8S_SA_JSON_KEY_BASE64
@@ -392,7 +381,7 @@ scan-container-hubspot-service-development:
     - K8S_NEW_RELIC_SUPPORT=""
     - INT_NEW_RELIC_APP_ID=${TEST__NEW_RELIC_APP_ID}
     - INT_NEW_RELIC_APP_DEPLOYMENT_NAME="$(cat ${CI_PROJECT_DIR}/.tmp/release_container_name)"
-  
+
   needs:
     - job: preprepare-gcloud-auth-access-token
       artifacts: true
@@ -404,14 +393,14 @@ deploy-kubernetes-development-hubspot-ui:
   before_script:
     - ALLO_FRONTEND_APP="hubspot-ui"
     - INT_KUBERNETES_FILE_INPUT_NAME="${CI_PROJECT_DIR}/apps/${ALLO_FRONTEND_APP}/.k8s/kubernetes.yaml"
-    - !reference [ .deploy-kubernetes-development, before_script ]
+    - !reference [.deploy-kubernetes-development, before_script]
   only:
     refs:
       - /^(main|master|dev|development|feature\/.+)$/
     changes:
       *changes_hubspot_ui
   needs:
-    - !reference [ .deploy-kubernetes-development, needs ]
+    - !reference [.deploy-kubernetes-development, needs]
     - job: build-container-hubspot-ui-development
       artifacts: false
 
@@ -420,13 +409,13 @@ deploy-kubernetes-development-hubspot-service:
   before_script:
     - ALLO_FRONTEND_APP="hubspot-service"
     - INT_KUBERNETES_FILE_INPUT_NAME="${CI_PROJECT_DIR}/apps/${ALLO_FRONTEND_APP}/.k8s/kubernetes.yaml"
-    - !reference [ .deploy-kubernetes-development, before_script ]
+    - !reference [.deploy-kubernetes-development, before_script]
   only:
     refs:
       - /^(main|master|dev|development|feature\/.+)$/
     changes:
       *changes_hubspot_service
   needs:
-    - !reference [ .deploy-kubernetes-development, needs ]
+    - !reference [.deploy-kubernetes-development, needs]
     - job: build-container-hubspot-service-development
       artifacts: false
