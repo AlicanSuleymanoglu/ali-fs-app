@@ -48,7 +48,7 @@ const AddMeeting: React.FC = () => {
     if ((isFollowUp || forceCompany || isRescheduling) && prefilledData.companyName) {
       if (!prefilledData.companyId) {
         toast.error("Missing company ID for follow-up meeting");
-        navigate('/dashboard');
+        navigate(-1); // Use direct navigation here since handleBack isn't in deps
         return;
       }
 
@@ -59,7 +59,7 @@ const AddMeeting: React.FC = () => {
       };
       setSelectedCompany(company);
     }
-  }, [isFollowUp, forceCompany, isRescheduling, prefilledData]);
+  }, [isFollowUp, forceCompany, isRescheduling, prefilledData, navigate]);
 
   // Process preselected times
   useEffect(() => {
@@ -114,8 +114,6 @@ const AddMeeting: React.FC = () => {
         notes: notes || ""
       };
 
-
-
       try {
         const res = await fetch(`${BASE_URL}/api/meetings/${meetingId}/reschedule`, {
           method: "PATCH",
@@ -128,7 +126,7 @@ const AddMeeting: React.FC = () => {
         if (!res.ok) throw new Error("Failed to reschedule meeting");
 
         toast.success("Meeting rescheduled!");
-        navigate('/dashboard');
+        handleBack();
       } catch (err) {
         console.error("❌ Meeting reschedule failed", err);
         toast.error("Failed to reschedule meeting");
@@ -181,7 +179,7 @@ const AddMeeting: React.FC = () => {
         toast.success(isFollowUp ? "Follow-up scheduled" : "Meeting scheduled");
       }
 
-      navigate('/dashboard');
+      handleBack();
     } catch (err) {
       console.error("❌ Meeting creation failed", err);
       toast.error("Failed to schedule meeting");
@@ -232,17 +230,29 @@ const AddMeeting: React.FC = () => {
   const showMeetingTypeDisplay = isFollowUp;
   const showCompanyDetails = (forceCompany || isFollowUp || isRescheduling) && (selectedCompany || prefilledData.companyName);
 
+  // Handle back navigation
+  const handleBack = () => {
+    // If we have a referrer in the state, go back to it
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else {
+      // Otherwise, use history.back() which is more flexible than hardcoding to dashboard
+      navigate(-1);
+    }
+  };
+
   return (
     <div className="allo-page">
       <div className="w-full max-w-3xl mx-auto py-4">
-        <Button
-          variant="outline"
-          className="mb-6"
-          onClick={() => navigate('/dashboard')}
-        >
-          <ChevronLeft size={16} className="mr-1" />
-          Back to Meetings
-        </Button>
+        <div className="flex justify-start mb-6">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+          >
+            <ChevronLeft size={16} className="mr-1" />
+            Back
+          </Button>
+        </div>
 
         <div className="allo-card w-full">
           <h2 className="text-xl font-semibold mb-6">

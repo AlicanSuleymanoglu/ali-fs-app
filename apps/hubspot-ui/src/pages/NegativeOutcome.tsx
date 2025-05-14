@@ -82,12 +82,14 @@ const NegativeOutcome: React.FC = () => {
       });
       if (!response.ok) throw new Error("Failed to mark meeting as completed");
       toast.success("Meeting marked as negative outcome and completed!");
+      // Step 2: Navigate back to the meeting outcome page
+      navigate(`/meeting/${id}/outcome`);
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
+      // Still navigate back to the meeting outcome page even on error
+      navigate(`/meeting/${id}/outcome`);
     }
-    // Step 2: Navigate away
-    navigate('/dashboard');
   };
 
 
@@ -97,10 +99,10 @@ const NegativeOutcome: React.FC = () => {
         <Button
           variant="outline"
           className="self-start mb-6"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate(`/meeting/${id}/outcome`)}
         >
           <ChevronLeft size={16} className="mr-1" />
-          Back to Meetings
+          Back
         </Button>
 
         <div className="w-full max-w-md mx-auto">

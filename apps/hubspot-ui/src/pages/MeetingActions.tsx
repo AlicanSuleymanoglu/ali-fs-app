@@ -42,6 +42,16 @@ const MeetingActions: React.FC = () => {
     return <div className="p-6">❌ Meeting not found in context.</div>;
   }
 
+  const handleBackToDashboard = () => {
+    // Navigate back to dashboard with the meeting date as state to preserve the selected date
+    const meetingDate = meetingDetails.startTime ? new Date(meetingDetails.startTime) : null;
+    navigate('/dashboard', {
+      state: {
+        selectedDate: meetingDate
+      }
+    });
+  };
+
   const handleAddressClick = () => {
     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingDetails.address)}`;
     window.open(googleMapsUrl, '_blank');
@@ -106,7 +116,7 @@ const MeetingActions: React.FC = () => {
         <Button
           variant="outline"
           className="self-start mb-6"
-          onClick={() => navigate('/dashboard')}
+          onClick={handleBackToDashboard}
         >
           <ChevronLeft size={16} className="mr-1" />
           Back to Meetings

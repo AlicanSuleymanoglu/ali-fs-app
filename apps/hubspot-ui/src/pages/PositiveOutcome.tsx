@@ -138,10 +138,10 @@ const PositiveOutcome: React.FC = () => {
         <Button
           variant="outline"
           className="self-start mb-6"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate(`/meeting/${id}/outcome`)}
         >
           <ChevronLeft size={16} className="mr-1" />
-          Back to Meetings
+          Back
         </Button>
 
         <div className="w-full max-w-md mx-auto">

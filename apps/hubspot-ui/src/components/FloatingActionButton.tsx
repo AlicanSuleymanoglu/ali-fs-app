@@ -34,6 +34,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { meetings } = useMeetingContext();
@@ -187,7 +188,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
             <div className="space-y-2">
               <Label>Date <span className="text-red-500">*</span></Label>
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}> <CalendarIcon className="mr-2 h-4 w-4" /> {date ? format(date, "dd.MM.yyyy") : <span>Select date</span>} </Button>
                 </PopoverTrigger>
@@ -195,7 +196,12 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
                   <CalendarComponent
                     mode="single"
                     selected={date}
-                    onSelect={(selectedDate) => selectedDate && setDate(selectedDate)}
+                    onSelect={(selectedDate) => {
+                      if (selectedDate) {
+                        setDate(selectedDate);
+                        setCalendarOpen(false); // Close the calendar when a date is selected
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>

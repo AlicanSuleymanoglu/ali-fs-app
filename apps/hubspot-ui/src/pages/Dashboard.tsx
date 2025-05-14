@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '../hooks/useUser.ts';
 import { useTasks } from '../hooks/useTasks.ts';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
+import { useLocation } from 'react-router-dom';
 
 // Import our newly created components
 import WeeklyOverview from '../components/WeeklyOverview.tsx';
@@ -19,6 +20,14 @@ const Dashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState<boolean>(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const location = useLocation();
+
+  // Use the date from navigation state if available
+  useEffect(() => {
+    if (location.state?.selectedDate) {
+      setCurrentDate(new Date(location.state.selectedDate));
+    }
+  }, [location.state]);
 
   const isMobile = useIsMobile();
   const user = useUser();

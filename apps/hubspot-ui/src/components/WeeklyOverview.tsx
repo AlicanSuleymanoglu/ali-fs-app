@@ -105,9 +105,6 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const isCurrentDateToday = isToday(currentDate);
   const isTodayInCurrentWeek = weekDays.some(day => isToday(day));
 
-  const MAX_DOTS = 4;
-  const MAX_DOTS_TOTAL = 8;
-
   return (
     <div
       className="bg-white rounded-lg shadow-sm p-4 mb-4"
@@ -146,22 +143,14 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
         <div className="grid grid-cols-7 col-span-7 gap-1 text-center">
           {weekDays.map((day, index) => {
             const dayMeetings = getMeetingsForDay(day);
-            const dayTasks = getTasksForDay(day);
             const isSelected = isSameDay(day, currentDate);
 
-            const totalItems = dayMeetings.length + dayTasks.length;
-            const showPlus = totalItems > MAX_DOTS_TOTAL;
-            const dotSize = totalItems > MAX_DOTS ? "w-1.5 h-1.5" : "w-2 h-2";
+            // Maximum 6 dots total with 3 per row
+            const MAX_DOTS_PER_ROW = 3;
+            const MAX_DOTS_TOTAL = 6;
 
-            let meetingDotsToShow = Math.min(dayMeetings.length, showPlus ? MAX_DOTS_TOTAL / 2 : MAX_DOTS);
-            let taskDotsToShow = Math.min(dayTasks.length, showPlus ? (MAX_DOTS_TOTAL - meetingDotsToShow) : (MAX_DOTS - meetingDotsToShow));
-
-            if (meetingDotsToShow < (showPlus ? MAX_DOTS_TOTAL / 2 : MAX_DOTS) && !showPlus) {
-              taskDotsToShow = Math.min(dayTasks.length, MAX_DOTS_TOTAL - meetingDotsToShow);
-            }
-            if (taskDotsToShow < (showPlus ? MAX_DOTS_TOTAL / 2 : MAX_DOTS) && !showPlus) {
-              meetingDotsToShow = Math.min(dayMeetings.length, MAX_DOTS_TOTAL - taskDotsToShow);
-            }
+            const meetingDotsToShow = Math.min(dayMeetings.length, MAX_DOTS_TOTAL);
+            const showPlus = dayMeetings.length > MAX_DOTS_TOTAL;
 
             return (
               <button
@@ -184,29 +173,36 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
                   {format(day, 'd')}
                 </span>
 
-                <div className="flex gap-0.5 mt-1 items-center justify-center h-2">
-                  {Array.from({ length: meetingDotsToShow }).map((_, i) => (
+                {/* First row of dots */}
+                <div className="flex gap-0.5 items-center justify-center h-2">
+                  {Array.from({ length: Math.min(meetingDotsToShow, MAX_DOTS_PER_ROW) }).map((_, i) => (
                     <div
-                      key={`meeting-${i}`}
-                      className={`${dotSize} rounded-full bg-[#FF8769]`}
+                      key={`meeting-row1-${i}`}
+                      className="w-2 h-2 rounded-full bg-[#FF8769]"
                       title={`${dayMeetings.length} meetings`}
                     />
                   ))}
-
-                  {Array.from({ length: taskDotsToShow }).map((_, i) => (
-                    <div
-                      key={`task-${i}`}
-                      className={`${dotSize} rounded-full bg-[#2E1813]`}
-                      title={`${dayTasks.length} tasks`}
-                    />
-                  ))}
-
-                  {showPlus && (
-                    <div className={`${dotSize} flex items-center justify-center ml-0.5 font-bold text-[8px] text-gray-600`} title={`${totalItems} total items`}>
-                      +
-                    </div>
-                  )}
                 </div>
+
+                {/* Second row of dots (only shown if there are more than 3 dots) */}
+                {meetingDotsToShow > MAX_DOTS_PER_ROW && (
+                  <div className="flex gap-0.5 mt-0.5 items-center justify-center h-2">
+                    {Array.from({ length: Math.min(meetingDotsToShow - MAX_DOTS_PER_ROW, MAX_DOTS_PER_ROW) }).map((_, i) => (
+                      <div
+                        key={`meeting-row2-${i}`}
+                        className="w-2 h-2 rounded-full bg-[#FF8769]"
+                        title={`${dayMeetings.length} meetings`}
+                      />
+                    ))}
+
+                    {showPlus && (
+                      <div className="w-2 h-2 flex items-center justify-center ml-0.5 font-bold text-[8px] text-gray-600"
+                        title={`${dayMeetings.length} total meetings`}>
+                        +
+                      </div>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}
