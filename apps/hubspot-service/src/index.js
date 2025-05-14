@@ -513,7 +513,7 @@ app.post('/api/meeting/:id/cancel', async (req, res) => {
   const meetingId = req.params.id;
 
   try {
-    await hubspotClient.crm.objects.meetings.basicApi.update(meetingId, {
+    await hubspotClient.crm.objects.meetings.update(meetingId, {
       properties: {
         hs_meeting_outcome: "CANCELED"
       }
