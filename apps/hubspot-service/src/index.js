@@ -48,7 +48,7 @@ app.get('/auth/login', (req, res) => {
   res.redirect(authUrl);
 });
 
-// ✅ Auth Callback
+// ✅ Auth Callback with refresh token
 app.get('/auth/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send('Missing code');
@@ -67,13 +67,71 @@ app.get('/auth/callback', async (req, res) => {
       }
     });
 
+    // Store the access token, refresh token, and expiration time
     req.session.accessToken = tokenRes.data.access_token;
+    req.session.refreshToken = tokenRes.data.refresh_token;
+    req.session.expiresIn = Date.now() + tokenRes.data.expires_in * 1000; // Expiration time in milliseconds
     res.redirect(FRONTEND_URL);
   } catch (err) {
     console.error("❌ Token exchange failed:", err.response?.data || err.message);
     res.status(500).send('Token exchange failed');
   }
 });
+
+// Function to refresh the access token
+async function refreshAccessToken(req) {
+  try {
+    const refreshToken = req.session.refreshToken;
+    if (!refreshToken) {
+      throw new Error("No refresh token found in session");
+    }
+
+    // Request a new access token using the refresh token
+    const formData = {
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      redirect_uri: REDIRECT_URI,
+      refresh_token: refreshToken
+    };
+
+    const tokenRes = await axios.post('https://api.hubapi.com/oauth/v1/token', null, {
+      params: formData,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    // Update session with new tokens and expiration time
+    req.session.accessToken = tokenRes.data.access_token;
+    req.session.refreshToken = tokenRes.data.refresh_token; // Update the refresh token if it's new
+    req.session.expiresIn = Date.now() + tokenRes.data.expires_in * 1000; // Set new expiration time
+    console.log("✅ Access token refreshed");
+  } catch (err) {
+    console.error("❌ Failed to refresh access token:", err.response?.data || err.message);
+    throw new Error("Failed to refresh access token");
+  }
+}
+
+// Middleware to check token expiration before making a request
+async function checkTokenExpiration(req, res, next) {
+  if (Date.now() > req.session.expiresIn) {
+    // Access token has expired, so refresh it
+    try {
+      await refreshAccessToken(req);
+      console.log("✅ Access token refreshed");
+      next();
+    } catch (err) {
+      console.error("❌ Failed to refresh token:", err);
+      res.status(401).json({ error: 'Session expired. Please login again.' });
+    }
+  } else {
+    // Token is still valid
+    next();
+  }
+}
+
+
 
 // ✅ Check if logged in TEST CHANGES
 app.get('/api/hubspot-data', (req, res) => {
