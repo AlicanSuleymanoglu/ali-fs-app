@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 
 // Import our newly created components
 import WeeklyOverview from '../components/WeeklyOverview.tsx';
@@ -15,6 +16,7 @@ import CreateTaskDialog from '../components/CreateTaskDialog.tsx';
 import FloatingActionButton from '../components/FloatingActionButton.tsx';
 import { Meeting } from '../components/MeetingCard.tsx';
 import UserProfile from '../components/UserProfile.tsx';
+import { Button } from '../components/ui/button.tsx';
 
 const Dashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -42,6 +44,69 @@ const Dashboard: React.FC = () => {
 
   const openCreateTaskDialog = () => {
     setIsCreateTaskDialogOpen(true);
+  };
+
+  // Function to generate Google Maps route URL with waypoints
+  const generateMapsRouteURL = () => {
+    // Get meetings for the selected day
+    const dayMeetings = meetings.filter(meeting => {
+      const meetingDate = new Date(meeting.startTime);
+      return (
+        meetingDate.getDate() === currentDate.getDate() &&
+        meetingDate.getMonth() === currentDate.getMonth() &&
+        meetingDate.getFullYear() === currentDate.getFullYear()
+      );
+    });
+
+    // Sort meetings by start time (earliest first)
+    const sortedMeetings = [...dayMeetings].sort((a, b) => {
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    });
+
+    if (sortedMeetings.length === 0) {
+      toast.error('No meetings scheduled for this day.');
+      return null; // No meetings today
+    }
+
+    if (sortedMeetings.length === 1) {
+      toast.error('Only one meeting scheduled. Need at least two locations for a route.');
+      return null;
+    }
+
+    // Get the first and last meeting locations
+    const firstMeeting = sortedMeetings[0];
+    const lastMeeting = sortedMeetings[sortedMeetings.length - 1];
+
+    // Create waypoints from the meetings in between
+    const waypoints = sortedMeetings.slice(1, -1).map(meeting => meeting.address || '');
+
+    let url = `https://www.google.com/maps/dir/?api=1`;
+
+    // Add origin (first meeting)
+    url += `&origin=${encodeURIComponent(firstMeeting.address || '')}`;
+
+    // Add destination (last meeting)
+    url += `&destination=${encodeURIComponent(lastMeeting.address || '')}`;
+
+    // Add waypoints (stops in between)
+    if (waypoints.length > 0) {
+      url += `&waypoints=${waypoints.map(wp => encodeURIComponent(wp)).join('|')}`;
+    }
+
+    return url;
+  };
+
+  const handleOpenMapsRoute = () => {
+    const url = generateMapsRouteURL();
+    if (url) {
+      // Open the URL in a new tab
+      const win = window as any;
+      if (win) {
+        win.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast.error('Failed to open Google Maps. Please try again.');
+      }
+    }
   };
 
   const handleCreateTask = (taskData: {
@@ -83,11 +148,24 @@ const Dashboard: React.FC = () => {
         onTaskDisqualify={handleTaskDisqualify}
       />
 
+      {/* Route Planning Button moved to the MeetingSection header */}
       <MeetingSection
         userId={user.user_id}
         selectedDate={currentDate}
         onSelectMeeting={(meeting) => setSelectedMeeting(meeting)}
         onFetchedMeetings={(meetings) => setMeetings(meetings)}
+        actionButton={
+          <Button
+            onClick={handleOpenMapsRoute}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 h-6 px-2 rounded-full border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+            title="View route map for today's meetings"
+          >
+            <MapPin size={14} className="text-blue-600" />
+            <span className="text-xs font-medium">Route</span>
+          </Button>
+        }
       />
 
       <FloatingActionButton onCreateTask={openCreateTaskDialog} />
