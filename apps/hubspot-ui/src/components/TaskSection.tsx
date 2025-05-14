@@ -3,8 +3,9 @@ import { Task } from '../types/index.ts';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from './TaskCard.tsx';
 import { Button } from './ui/button.tsx';
-import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
+import { isPast, isSameDay } from 'date-fns';
 
 interface TaskSectionProps {
   currentDate: Date;
@@ -100,18 +101,26 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">No tasks for this day. Check all your tasks in the </p>
-          <Button variant="link" onClick={navigateToTasks} className="ml-1">
-            Inbox ({totalTasksInInbox})
-          </Button>
+        <div className="flex flex-col items-center justify-center text-center py-4">
+          <div className="flex items-center mb-2">
+            <Inbox className="h-6 w-6 text-muted-foreground mr-1" />
+            <span className="text-base font-semibold text-black">{totalTasksInInbox}</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            No tasks for this day. Check all your tasks in the&nbsp;
+            <Button
+              variant="link"
+              onClick={navigateToTasks}
+              className="p-0 h-auto inline text-sm text-muted-foreground hover:text-primary"
+            >
+              inbox
+            </Button>
+            .
+          </p>
         </div>
       )}
     </div>
   );
 };
-
-// Add missing imports
-import { isPast, isSameDay } from 'date-fns';
 
 export default TaskSection;
