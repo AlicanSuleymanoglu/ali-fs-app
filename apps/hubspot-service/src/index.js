@@ -142,8 +142,8 @@ app.get('/api/hubspot-data', (req, res) => {
   }
 });
 
-// ✅ Get user info
-app.get('/api/me', async (req, res) => {
+// Example of a route using the middleware to ensure valid token
+app.get('/api/me', checkTokenExpiration, async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
@@ -163,6 +163,7 @@ app.get('/api/me', async (req, res) => {
     res.status(500).send('Could not retrieve user info');
   }
 });
+
 
 
 // ✅ Get meetings by user WITH contactId, companyId, and dealId
