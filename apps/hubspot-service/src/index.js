@@ -75,7 +75,7 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// ✅ Check if logged in
+// ✅ Check if logged in TEST CHANGES
 app.get('/api/hubspot-data', (req, res) => {
   if (req.session.accessToken) {
     res.status(200).json({ authenticated: true });
