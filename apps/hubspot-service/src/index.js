@@ -32,6 +32,10 @@ console.log('PORT:', process.env.PORT);
 
 app.use(express.json());
 
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:8080'],
+  credentials: true
+}));
 app.use(session({
   secret: 'hubspot_secret_key',
   resave: false,
