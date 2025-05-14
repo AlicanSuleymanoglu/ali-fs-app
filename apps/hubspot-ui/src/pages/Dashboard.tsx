@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useUser } from '../hooks/useUser.ts';
 import { useTasks } from '../hooks/useTasks.ts';
@@ -57,12 +56,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col relative">
-      {/* User Profile positioned at the top right corner */}
-      <div className="absolute top-4 right-4 z-10">
-        <UserProfile small={true} />
-      </div>
-      
-      <div className="flex-none mt-12">
+      {/* Moved WeeklyOverview to the very top with no margin */}
+      <div className="flex-none">
         <WeeklyOverview
           currentDate={currentDate}
           meetings={meetings}

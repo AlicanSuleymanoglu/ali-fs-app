@@ -1,6 +1,6 @@
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar.tsx";
 import { useUser } from "../hooks/useUser.ts";
+import { User } from "lucide-react"; // User icon from lucide-react
 
 interface UserProfileProps {
   small?: boolean;
@@ -11,30 +11,25 @@ const UserProfile: React.FC<UserProfileProps> = ({ small = false }) => {
 
   if (!user) return null; // or a skeleton loader
 
-  const avatarText = user.name
-    ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)
-    : 'U';
+  // Format name by removing email domain if present
+  const displayName = user.name
+    ? user.name.split('@')[0]
+    : 'User';
 
   if (small) {
     return (
       <div className="flex items-center gap-2">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src="/placeholder.svg" alt={user.name} />
-          <AvatarFallback>{avatarText}</AvatarFallback>
-        </Avatar>
-        <span className="text-sm font-medium">{user.name}</span>
+        <User className="h-4 w-4 text-blue-500" />
+        <span className="text-sm font-medium">{displayName}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center space-x-4 p-4 bg-white/90 rounded-lg border border-gray-200 shadow-sm">
-      <Avatar className="h-12 w-12">
-        <AvatarImage src="/placeholder.svg" alt={user.name} />
-        <AvatarFallback>{avatarText}</AvatarFallback>
-      </Avatar>
-      <div>
-        <p className="text-base font-medium">{user.name}</p>
+    <div className="flex items-center p-4 bg-white/90 rounded-lg border border-gray-200 shadow-sm">
+      <div className="flex items-center gap-2">
+        <User className="h-5 w-5 text-blue-500" />
+        <p className="text-base font-medium">{displayName}</p>
         <p className="text-sm text-muted-foreground">{user.email}</p>
       </div>
     </div>
