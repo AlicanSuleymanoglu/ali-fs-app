@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Input } from "../components/ui/input.tsx";
@@ -10,11 +10,12 @@ interface AddNewCompanyPopupProps {
     isOpen: boolean;
     onClose: () => void;
     onCompanyCreated?: (companyData: any) => void;
+    defaultName?: string;
 }
 
-const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose, onCompanyCreated }) => {
+const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose, onCompanyCreated, defaultName = '' }) => {
     const [newCompany, setNewCompany] = useState({
-        name: '',
+        name: defaultName || '',
         street: '',
         city: '',
         postalCode: '',
@@ -43,6 +44,15 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
         "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"
     ];
 
+    useEffect(() => {
+        if (isOpen && defaultName) {
+            setNewCompany(prev => ({
+                ...prev,
+                name: defaultName
+            }));
+        }
+    }, [isOpen, defaultName]);
+
     const handleNewCompanyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setNewCompany(prev => ({
@@ -61,7 +71,6 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
     const handleCreateCompany = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate form
         if (!newCompany.name || !newCompany.street || !newCompany.city || !newCompany.postalCode) {
             toast.error("Please fill in all required fields");
             return;
@@ -73,7 +82,7 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
             const response = await fetch(`${BASE_URL}/api/companies/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include", // Make sure the user is authenticated
+                credentials: "include",
                 body: JSON.stringify(newCompany),
             });
 
@@ -81,11 +90,12 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
                 throw new Error("Failed to create company");
             }
 
-            const data = await response.json();
+            const companyData = await response.json();
             toast.success("Company created successfully");
 
+            // ✅ Just call parent to handle the flow
             if (onCompanyCreated) {
-                onCompanyCreated(data);
+                onCompanyCreated(companyData);
             }
 
             onClose();
@@ -96,6 +106,8 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
             setLoading(false);
         }
     };
+
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

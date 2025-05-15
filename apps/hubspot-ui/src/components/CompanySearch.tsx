@@ -43,6 +43,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
   const [showContactSearch, setShowContactSearch] = useState(false);
   const [selectedCompanyForDialog, setSelectedCompanyForDialog] = useState<Company | null>(null);
   const [showAddCompanyDialog, setShowAddCompanyDialog] = useState(false);
+  const [isSettingUpCompany, setIsSettingUpCompany] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: '',
     street: '',
@@ -283,12 +284,42 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     setShowResults(false);
   };
 
-  const handleCreateCompany = (companyData: any) => {
-    // Logic to handle the newly created company
-    // For example, you might want to select this company or update the list
-    console.log('New company created:', companyData);
+  const handleCreateCompany = async (companyData: Company) => {
     toast.success('Company created successfully');
+    setIsSettingUpCompany(true);
+
+    try {
+      const term = companyData.name;
+
+      setSearchTerm(term);
+      await searchCompanies(term); // fills searchResults (asynchronously)
+
+      // Wait for React to update state
+      setTimeout(() => {
+        const results = [...searchResults]; // capture current state
+        const match = results.find(
+          (c: Company) => c.name.toLowerCase() === term.toLowerCase()
+        );
+
+        if (match) {
+          handleSelectCompany(match);
+        } else {
+          toast.error("Couldn't find the newly created company in search.");
+          console.warn("Search results at click:", results);
+        }
+
+        setIsSettingUpCompany(false);
+      }, 300); // Give time for state update/render
+    } catch (err) {
+      console.error("❌ Error during company flow:", err);
+      toast.error("Something went wrong finishing company setup.");
+      setIsSettingUpCompany(false);
+    }
   };
+
+
+
+
 
   useEffect(() => {
     if (value) {
@@ -309,7 +340,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
           onChange={handleInputChange}
           className="pl-9"
           onFocus={() => {
-            if (searchTerm.trim().length >= 2 && searchResults.length > 0) {
+            if ((searchTerm ?? '').trim().length >= 2 && searchResults.length > 0) {
               setShowResults(true);
             }
           }}
@@ -391,8 +422,28 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       <AddNewCompanyPopup
         isOpen={showAddCompanyDialog}
         onClose={() => setShowAddCompanyDialog(false)}
-        onCreateCompany={handleCreateCompany}
+        onCompanyCreated={handleCreateCompany}
+        defaultName={searchTerm}
       />
+
+      <Dialog open={isSettingUpCompany}>
+        <DialogContent className="sm:max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle>Finishing Setup</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <p className="text-sm text-gray-500">
+              The new company has been created.<br />We're now creating the deal and checking for contacts.
+            </p>
+            <div className="flex justify-center mt-4">
+              <svg className="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
