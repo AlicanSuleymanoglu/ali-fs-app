@@ -717,10 +717,10 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
   if (!token) return res.status(401).send('Not authenticated');
 
   const { dealId } = req.params;
-  const { deal_stage, closed_won_reason, pos_competitor, payment_competitor } = req.body;
+  const { closed_won_reason, pos_competitor } = req.body;
 
   // Required fields
-  if (!deal_stage || !closed_won_reason) {
+  if (!closed_won_reason) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -731,7 +731,6 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
     };
     // Optional competitor fields if present
     if (pos_competitor) properties.pos_competitor = pos_competitor;
-    if (payment_competitor) properties.payment_competitor = payment_competitor;
 
     // HubSpot PATCH update
     const updateRes = await axios.patch(

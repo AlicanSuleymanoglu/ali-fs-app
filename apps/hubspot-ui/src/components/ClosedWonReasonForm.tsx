@@ -15,7 +15,6 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
   const [reason, setReason] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
   const [posCompetitor, setPosCompetitor] = useState<string>("");
-  const [paymentCompetitor, setPaymentCompetitor] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
@@ -47,7 +46,6 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
         body: JSON.stringify({
           closed_won_reason: reason === "Other" ? otherReason : reason,
           pos_competitor: posCompetitor,
-          payment_competitor: paymentCompetitor,
         }),
       });
 
