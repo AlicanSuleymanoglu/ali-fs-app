@@ -54,6 +54,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     fullAddress: ''
   });
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [showContactDialog, setShowContactDialog] = useState(false);
   const onSelectRef = useRef(onSelect);
 
   useEffect(() => {
@@ -178,9 +179,9 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       const firstContact = contacts[0];
 
       if (!firstContact) {
-        // No contacts found, show contact search
+        // No contacts found, show contact search dialog
         setSelectedCompanyForDialog(company);
-        setShowContactSearch(true);
+        setShowContactDialog(true);
       } else {
         // Pass company with contactId
         onSelectRef.current({ ...company, contactId: firstContact.id || null });
@@ -194,13 +195,25 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
 
   const handleContactSearchSelect = (contact: Contact) => {
     setSelectedContact(contact);
-    // When a contact is selected, update the company with the contact ID
-    if (selectedCompanyForDialog) {
+  };
+
+  const handleContactDialogComplete = () => {
+    setShowContactDialog(false);
+
+    // When a contact is selected and dialog is closed
+    if (selectedCompanyForDialog && selectedContact) {
       const updatedCompany = {
         ...selectedCompanyForDialog,
-        contactId: contact.id || ''
+        contactId: selectedContact.id || ''
       };
-      onSelectRef.current(updatedCompany);
+
+      // Check if we need to create a deal
+      if (!updatedCompany.dealId) {
+        setSelectedCompanyForDialog(updatedCompany);
+        setShowNoDealDialog(true);
+      } else {
+        onSelectRef.current(updatedCompany);
+      }
     }
   };
 
@@ -224,18 +237,51 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       const firstDeal = deals[0];
       const companyWithDeal = { ...company, dealId: firstDeal?.id || null };
 
-      if (!firstDeal) {
-        // No deals found, show dialog
-        setSelectedCompanyForDialog(company);
-        setShowNoDealDialog(true);
-      } else {
-        // Continue to check for contacts
-        await checkForContact(companyWithDeal);
-      }
+      // Always look for contacts first, regardless of deal status
+      setSelectedCompanyForDialog(companyWithDeal);
+      await checkForContactAvailability(companyWithDeal);
     } catch (err) {
       console.error("❌ Failed to fetch deal:", err);
       toast.error("Could not fetch deal for selected company.");
-      await checkForContact({ ...company, dealId: null });
+      setSelectedCompanyForDialog(company);
+      await checkForContactAvailability(company);
+    }
+  };
+
+  const checkForContactAvailability = async (company: Company) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/hubspot/company/${company.id}/contacts`, {
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch contacts");
+      }
+
+      const contacts = await res.json();
+      const firstContact = contacts[0];
+
+      if (!firstContact) {
+        // No contacts found, show contact search dialog
+        setShowContactDialog(true);
+      } else {
+        // Found a contact, check if we need to show the deal dialog
+        const updatedCompany = { ...company, contactId: firstContact.id || null };
+        if (!updatedCompany.dealId) {
+          setSelectedCompanyForDialog(updatedCompany);
+          setShowNoDealDialog(true);
+        } else {
+          onSelectRef.current(updatedCompany);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch contacts:", err);
+      toast.error("Could not fetch contacts for selected company.");
+      if (!company.dealId) {
+        setShowNoDealDialog(true);
+      } else {
+        onSelectRef.current(company);
+      }
     }
   };
 
@@ -266,7 +312,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
 
       // Close dialog and check for contacts with the deal ID
       setShowNoDealDialog(false);
-      await checkForContact({
+      await checkForContactAvailability({
         ...selectedCompanyForDialog,
         dealId: newDeal.id
       });
@@ -275,7 +321,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       toast.error("Could not create new deal");
       // Still select the company but without a deal, and check for contacts
       setShowNoDealDialog(false);
-      await checkForContact({ ...selectedCompanyForDialog, dealId: null });
+      await checkForContactAvailability({ ...selectedCompanyForDialog, dealId: null });
     }
   };
 
@@ -363,14 +409,34 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         </div>
       )}
 
-      {showContactSearch && (
-        <ContactSearch
-          onSelect={handleContactSearchSelect}
-          selectedCompany={selectedCompanyForDialog}
-          value={selectedContact}
-          disabled={false}
-        />
-      )}
+      {/* Contact Search Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Select Contact</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-500 mb-4">
+              Please select a contact for {selectedCompanyForDialog?.name}
+            </p>
+            <ContactSearch
+              onSelect={handleContactSearchSelect}
+              selectedCompany={selectedCompanyForDialog}
+              value={selectedContact}
+              disabled={false}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowContactDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleContactDialogComplete}
+              disabled={!selectedContact}
+            >
+              Add Selected Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* No Deal Dialog */}
       <Dialog

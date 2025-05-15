@@ -135,7 +135,6 @@ const MeetingActions: React.FC = () => {
               onClick={handleAddressClick}
               style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}
             >
-              <MapPin className="h-4 w-4 mr-1" />
               <span>{meetingDetails.address}</span>
             </button>
           </div>

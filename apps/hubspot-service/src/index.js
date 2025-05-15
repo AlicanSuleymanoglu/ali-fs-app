@@ -228,15 +228,25 @@ app.post('/api/meetings', async (req, res) => {
           companyId = assocRes.data.results?.[0]?.id || null;
           if (companyId) {
             const companyRes = await axios.get(
-              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,address,address1,address_street`,
+              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,address,address1,address_street,city`,
               { headers: { Authorization: `Bearer ${token}` } }
             );
             companyName = companyRes.data.properties.name || 'Unnamed Company';
-            companyAddress =
-              companyRes.data.properties.address ||
-              companyRes.data.properties.address1 ||
-              companyRes.data.properties.address_street ||
-              'Unknown Address';
+
+            // Combine street address and city
+            const street =
+              companyRes.data.properties.address || '';
+            const city = companyRes.data.properties.city || '';
+
+            if (street && city) {
+              companyAddress = `${street}, ${city}`;
+            } else if (street) {
+              companyAddress = street;
+            } else if (city) {
+              companyAddress = city;
+            } else {
+              companyAddress = 'Unknown Address';
+            }
           }
         } catch (e) {
           console.warn(`⚠️ Could not fetch company for meeting ${id}`);

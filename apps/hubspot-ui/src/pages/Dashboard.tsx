@@ -67,19 +67,12 @@ const Dashboard: React.FC = () => {
       return null; // No meetings today
     }
 
-    // Helper function to get full location (address and city)
+    // Helper function to get full location with street and city information
     const getFullLocation = (meeting: Meeting) => {
       if (!meeting.address) return '';
 
-      // The address field should already contain the full address including city
-      // If the address doesn't contain a comma (which typically separates address from city),
-      // we should assume it's only a partial address
-      if (!meeting.address.includes(',')) {
-        // Try to append company information if possible, as company often has city info
-        return meeting.address + (meeting.companyName ? `, ${meeting.companyName}` : '');
-      }
-
-      // If the address already has a comma, assume it's a complete address
+      // The address should already contain both street and city information 
+      // from the backend, so we just use it directly
       return meeting.address;
     };
 

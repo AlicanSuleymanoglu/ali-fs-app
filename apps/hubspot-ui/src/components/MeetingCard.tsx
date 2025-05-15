@@ -244,7 +244,6 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
             className="flex items-center gap-1.5 text-xs text-allo-muted hover:text-[#FF8769] cursor-pointer"
             onClick={handleAddressClick}
           >
-            <MapPin size={14} />
             <span className="underline">{meeting.address}</span>
           </div>
         )}

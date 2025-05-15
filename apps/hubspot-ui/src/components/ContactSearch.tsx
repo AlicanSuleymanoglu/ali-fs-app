@@ -166,7 +166,7 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
 
   return (
     <div className="space-y-2 relative">
-      <Label htmlFor="contact">Contact Name</Label>
+      <Label htmlFor="contact">Contact Name (currently only last name works)</Label>
       <div className="relative">
         <Input
           id="contact"
