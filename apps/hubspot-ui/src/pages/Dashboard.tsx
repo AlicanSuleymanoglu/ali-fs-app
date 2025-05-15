@@ -67,10 +67,26 @@ const Dashboard: React.FC = () => {
       return null; // No meetings today
     }
 
+    // Helper function to get full location (address and city)
+    const getFullLocation = (meeting: Meeting) => {
+      if (!meeting.address) return '';
+
+      // The address field should already contain the full address including city
+      // If the address doesn't contain a comma (which typically separates address from city),
+      // we should assume it's only a partial address
+      if (!meeting.address.includes(',')) {
+        // Try to append company information if possible, as company often has city info
+        return meeting.address + (meeting.companyName ? `, ${meeting.companyName}` : '');
+      }
+
+      // If the address already has a comma, assume it's a complete address
+      return meeting.address;
+    };
+
     if (sortedMeetings.length === 1) {
       // For a single meeting, just show its location
       const meeting = sortedMeetings[0];
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meeting.address || '')}`;
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getFullLocation(meeting))}`;
     }
 
     // Get the first and last meeting locations
@@ -78,15 +94,15 @@ const Dashboard: React.FC = () => {
     const lastMeeting = sortedMeetings[sortedMeetings.length - 1];
 
     // Create waypoints from the meetings in between
-    const waypoints = sortedMeetings.slice(1, -1).map(meeting => meeting.address || '');
+    const waypoints = sortedMeetings.slice(1, -1).map(meeting => getFullLocation(meeting));
 
     let url = `https://www.google.com/maps/dir/?api=1`;
 
     // Add origin (first meeting)
-    url += `&origin=${encodeURIComponent(firstMeeting.address || '')}`;
+    url += `&origin=${encodeURIComponent(getFullLocation(firstMeeting))}`;
 
     // Add destination (last meeting)
-    url += `&destination=${encodeURIComponent(lastMeeting.address || '')}`;
+    url += `&destination=${encodeURIComponent(getFullLocation(lastMeeting))}`;
 
     // Add waypoints (stops in between)
     if (waypoints.length > 0) {

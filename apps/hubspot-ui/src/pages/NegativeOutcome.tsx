@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import AudioRecorder from '../components/AudioRecorder.tsx';
 import ClosedLostReasonForm from '../components/ClosedLostReasonForm.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx'; // if using context
+import { useUser } from '../hooks/useUser.ts';
+
 
 const NegativeOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +23,9 @@ const NegativeOutcome: React.FC = () => {
   // 3. Local state, preferring nav > context
   const [dealId, setDealId] = useState<string | null>(navDealId || contextDealId || null);
   const [loadingDealId, setLoadingDealId] = useState<boolean>(!dealId);
+  const meetingDetails = meetings.find(m => m.id === id);
+  const user = useUser();
+  const ownerId = meetingDetails?.ownerId || user?.user_id;
 
   // Only fetch if missing from nav/context
   useEffect(() => {
@@ -51,12 +56,17 @@ const NegativeOutcome: React.FC = () => {
 
   const handleAudioSend = async (blob: Blob) => {
     setAudioBlob(blob);
-
-    // Build FormData for file upload
     const formData = new FormData();
-    formData.append('audio', blob, 'voice-note.webm'); // Use the correct extension
-    console.log('Audio blob:', blob); // Log the blob instead of undefined req.file
-    console.log('Forwarding audio to Zapier...');
+
+    formData.append('audio', blob, 'voice-note.webm');
+
+    // ✅ Add metadata
+    formData.append('userId', ownerId ?? 'unknown');
+    formData.append('meetingId', meetingDetails?.id ?? '');
+    formData.append('companyId', String(meetingDetails?.companyId ?? ''));
+    formData.append('dealId', String(meetingDetails?.dealId ?? ''));
+    formData.append('contactId', String(meetingDetails?.contactId ?? ''));
+
     try {
       const response = await fetch(`${BASE_URL}/api/meeting/send-voice`, {
         method: 'POST',
@@ -66,12 +76,12 @@ const NegativeOutcome: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to send audio to backend');
       toast.success("Voice note recorded and sent successfully");
-      setStep('reason');
     } catch (err) {
       toast.error("Failed to send voice note");
       console.error("Backend error:", err);
     }
   };
+
 
   const handleComplete = async () => {
     // Step 1: Mark meeting as completed in backend (and HubSpot)

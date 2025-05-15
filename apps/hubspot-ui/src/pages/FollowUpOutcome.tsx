@@ -53,7 +53,15 @@ const FollowUpOutcome: React.FC = () => {
   const handleAudioSend = async (blob: Blob) => {
     setAudioBlob(blob);
     const formData = new FormData();
+
     formData.append('audio', blob, 'voice-note.webm');
+
+    // ✅ Add metadata
+    formData.append('userId', ownerId ?? 'unknown');
+    formData.append('meetingId', meetingDetails?.id ?? '');
+    formData.append('companyId', String(meetingDetails?.companyId ?? ''));
+    formData.append('dealId', String(meetingDetails?.dealId ?? ''));
+    formData.append('contactId', String(meetingDetails?.contactId ?? ''));
 
     try {
       const response = await fetch(`${BASE_URL}/api/meeting/send-voice`, {
@@ -70,6 +78,7 @@ const FollowUpOutcome: React.FC = () => {
       console.error("Backend error:", err);
     }
   };
+
 
   const handleScheduleFollowUp = async () => {
     if (!meetingDetails) return;

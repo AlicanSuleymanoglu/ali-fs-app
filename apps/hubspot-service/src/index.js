@@ -539,19 +539,27 @@ app.post('/api/meeting/:id/cancel', async (req, res) => {
 const upload = multer(); // memory storage
 
 app.post('/api/meeting/send-voice', upload.single('audio'), async (req, res) => {
-  console.log('req.file:', req.file); // Log the file details
+  console.log('req.file:', req.file);
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No audio file received' });
     }
 
-    // Use form-data (Node, not web) for file upload
     const formData = new FormData();
+
     formData.append('audio', req.file.buffer, {
       filename: req.file.originalname || 'voice-note.webm',
       contentType: req.file.mimetype,
       knownLength: req.file.size,
     });
+
+    // ✅ Add forwarded metadata
+    formData.append('userId', req.body.userId || 'unknown');
+    formData.append('meetingId', req.body.meetingId || '');
+    formData.append('companyId', req.body.companyId || '');
+    formData.append('dealId', req.body.dealId || '');
+    formData.append('contactId', req.body.contactId || '');
 
     const zapierResponse = await fetch('https://hooks.zapier.com/hooks/catch/20863141/2pdsjyw/', {
       method: 'POST',
@@ -571,6 +579,7 @@ app.post('/api/meeting/send-voice', upload.single('audio'), async (req, res) => 
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 const upload_contract = multer(); // In-memory storage
 

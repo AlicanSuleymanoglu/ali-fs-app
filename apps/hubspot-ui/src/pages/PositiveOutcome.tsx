@@ -7,6 +7,8 @@ import FileUploader from '../components/FileUploader.tsx';
 import { toast } from "sonner";
 import ClosedWonReasonForm from '../components/ClosedWonReasonForm.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
+import { useUser } from '../hooks/useUser.ts';
+
 
 const PositiveOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,9 +16,15 @@ const PositiveOutcome: React.FC = () => {
   const location = useLocation();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
+
   const navDealId = location.state?.dealId;
   const { meetings } = useMeetingContext?.() || { meetings: [] };
+  const meetingDetails = meetings.find(m => m.id === id);
+  const user = useUser();
+  const ownerId = meetingDetails?.ownerId || user?.user_id;
   const contextDealId = meetings.find(m => m.id === id)?.dealId;
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
 
   const [dealId, setDealId] = useState<string | null>(navDealId || contextDealId || null);
   const [loadingDealId, setLoadingDealId] = useState<boolean>(!dealId);
@@ -75,16 +83,18 @@ const PositiveOutcome: React.FC = () => {
     }
   };
 
-  const handleAudioSend = async (audioBlob: Blob) => {
-    if (!dealId) {
-      toast.error("No associated deal found for this meeting.");
-      return;
-    }
-
-    setAudioUploading(true);
+  const handleAudioSend = async (blob: Blob) => {
+    setAudioBlob(blob);
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'voice-note.webm');
-    formData.append('dealId', dealId);
+
+    formData.append('audio', blob, 'voice-note.webm');
+
+    // ✅ Add metadata
+    formData.append('userId', ownerId ?? 'unknown');
+    formData.append('meetingId', meetingDetails?.id ?? '');
+    formData.append('companyId', String(meetingDetails?.companyId ?? ''));
+    formData.append('dealId', String(meetingDetails?.dealId ?? ''));
+    formData.append('contactId', String(meetingDetails?.contactId ?? ''));
 
     try {
       const response = await fetch(`${BASE_URL}/api/meeting/send-voice`, {
@@ -95,12 +105,9 @@ const PositiveOutcome: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to send audio to backend');
       toast.success("Voice note recorded and sent successfully");
-      setStep('reason');
     } catch (err) {
       toast.error("Failed to send voice note");
       console.error("Backend error:", err);
-    } finally {
-      setAudioUploading(false);
     }
   };
 
