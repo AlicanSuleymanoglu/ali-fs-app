@@ -159,6 +159,7 @@ const FollowUpOutcome: React.FC = () => {
       dealId: meetingDetails.dealId,
       companyName: meetingDetails.companyName,
       ownerId: user?.user_id,
+      meetingId: meetingDetails.id,
     };
     console.log("🧪 Task Payload:", payload);
     console.log("✅ contactId from meetingDetails:", meetingDetails.contactId);

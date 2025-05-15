@@ -801,6 +801,7 @@ app.post('/api/tasks', async (req, res) => {
       let dealId = '';
       let companyId = '';
       let contactId = '';
+      let meetingId = '';
       console.log("📦 HubSpot Task Properties:", task.properties);
 
 
@@ -1053,7 +1054,8 @@ app.post('/api/hubspot/tasks/create', async (req, res) => {
     contactId,
     dealId,
     companyName,
-    ownerId
+    ownerId,
+    meetingId,
   } = req.body;
   console.log("📩 Creating task for company", companyId);
 
@@ -1066,12 +1068,12 @@ app.post('/api/hubspot/tasks/create', async (req, res) => {
   const taskPayload = {
     properties: {
       hs_timestamp: taskDate,
-      hs_task_body: req.body.taskBody?.trim() || `Followup with the restaurant ${companyName}`,
+      hs_task_body: req.body.taskBody?.trim() || `Followup with the restaurant ${companyName} (${meetingId})`,
       hubspot_owner_id: ownerId,
       hs_task_subject: `Followup Task - ${companyName}`,
       hs_task_status: "NOT_STARTED",
       hs_task_priority: "MEDIUM",
-      hs_task_type: "CALL"
+      hs_task_type: "CALL",
     },
     associations: [
       {

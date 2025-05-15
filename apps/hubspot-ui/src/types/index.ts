@@ -19,6 +19,7 @@ export interface Task {
   disqualifyOtherReason?: string;
   moreInfo?: string;
   body?: string; // 🆕 ADD THIS LINE
+  meetingId?: string;
 }
 
 export type SalesRegion =

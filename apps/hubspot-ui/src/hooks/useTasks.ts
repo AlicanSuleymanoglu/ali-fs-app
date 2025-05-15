@@ -18,6 +18,12 @@ export const useTasks = () => {
     const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
     const unreadCount = tasks.filter((task) => !task.isRead).length;
+    const extractMeetingIdFromSubject = (
+        body: string,
+    ): string | undefined => {
+        const match = body?.match(/\(([^)]+)\)$/);
+        return match ? match[1] : undefined;
+    };
 
     useEffect(() => {
         const fetchTasks = async () => {
@@ -42,6 +48,7 @@ export const useTasks = () => {
                                 task.dealId,
                             ); // ✅ ADD THIS
                             console.log("🕒 Raw dueDate:", task.dueDate);
+                            console.log("🧠 Task body:", task.body);
                             console.log(
                                 "📅 Parsed dueDate:",
                                 new Date(Number(task.dueDate)),
@@ -71,6 +78,8 @@ export const useTasks = () => {
                                 contactId: task.contactId || "",
                                 companyId: task.companyId || "",
                                 companyAddress: task.companyAddress || "",
+                                meetingId: task.meetingId ||
+                                    extractMeetingIdFromSubject(task.body),
                             };
                         },
                     ),

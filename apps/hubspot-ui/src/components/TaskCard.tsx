@@ -173,6 +173,19 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     setOtherReason(value);
   };
 
+  const handleWinDeal = () => {
+    if (task.meetingId) {
+      navigate(`/meeting/${task.meetingId}/outcome`);
+    } else {
+      console.warn("⚠️ No meetingId provided in task");
+      toast.error("No associated meeting found");
+    }
+
+    setIsDialogOpen(false);
+  };
+
+
+
   return (
     <>
       <Card
@@ -205,11 +218,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
           </DialogHeader>
 
           <div className="text-sm space-y-2">
-            <p>
-              <span className="font-medium">Notes:</span>{" "}
-              {task.body ? task.body.replace(/<[^>]+>/g, '').trim() : "N/A"}
-            </p>
-            <p><span className="font-medium">Restaurant:</span> {task.restaurantName || "N/A"}</p>
             <p><span className="font-medium">Contact:</span> {task.contactName || "N/A"}</p>
             <p><span className="font-medium">Phone:</span> {task.phoneNumber || "N/A"}</p>
             <p><span className="font-medium">Email:</span> {task.email || "N/A"}</p>
@@ -225,7 +233,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2">
+          <div className="grid grid-cols-3 gap-2 pt-2">
             <Button
               onClick={handleCall}
               className="w-full flex items-center justify-center"
@@ -242,16 +250,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
               size="sm"
             >
               <CalendarIcon size={16} className="mr-1" />
-              Schedule Meeting
-            </Button>
-            <Button
-              onClick={openDisqualifyDialog}
-              className="w-full flex items-center justify-center"
-              variant="outline"
-              size="sm"
-            >
-              <XCircle size={16} className="mr-1" />
-              Lose the Deal
+              Meeting
             </Button>
             <Button
               onClick={handlePostponeClick}
@@ -261,6 +260,27 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
             >
               <Clock size={16} className="mr-1" />
               Postpone
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <Button
+              onClick={handleWinDeal}
+              className="w-full flex items-center justify-center"
+              variant="outline"
+              size="sm"
+            >
+              <CheckCircle size={16} className="mr-1" />
+              Win the Deal
+            </Button>
+            <Button
+              onClick={openDisqualifyDialog}
+              className="w-full flex items-center justify-center"
+              variant="outline"
+              size="sm"
+            >
+              <XCircle size={16} className="mr-1" />
+              Lose the Deal
             </Button>
           </div>
         </DialogContent>
