@@ -16,7 +16,7 @@ export interface Meeting {
   endTime: string;
   date: string;
   type?: 'Sales Meeting' | 'Sales Followup';
-  status?: 'scheduled' | 'completed' | 'canceled' | 'rescheduled';
+  status?: 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'RESCHEDULED';
   address?: string;
   dealId?: string | number | null;
   onSelect?: (meeting: Meeting) => void;
@@ -55,6 +55,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
+
+
   const dayOfWeek = getDayOfWeek(meeting.date);
   const handleClick = () => {
     if (meeting.status === 'completed') return;
@@ -80,17 +82,17 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     let icon, bgColor, textColor;
 
     switch (status) {
-      case 'completed':
+      case 'COMPLETED':
         icon = <CheckCircle size={isCalendarView ? 12 : 14} />;
         bgColor = 'bg-green-100';
         textColor = 'text-green-800';
         break;
-      case 'canceled':
+      case 'CANCELED':
         icon = <XCircle size={isCalendarView ? 12 : 14} />;
         bgColor = 'bg-red-100';
         textColor = 'text-red-800';
         break;
-      case 'rescheduled':
+      case 'RESCHEDULED':
         icon = <RotateCw size={isCalendarView ? 12 : 14} />;
         bgColor = 'bg-orange-100';
         textColor = 'text-orange-800';
@@ -160,7 +162,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
       meetingBgColor = 'bg-green-200';
       meetingHoverBgColor = 'hover:bg-green-300';
     } else if (meeting.status === 'canceled') {
-      meetingBgColor = 'bg-red-200';
+      meetingBgColor = 'bg-green-200';
       meetingHoverBgColor = 'hover:bg-red-300';
     } else if (meeting.status === 'rescheduled') {
       meetingBgColor = 'bg-yellow-200';
