@@ -1015,7 +1015,6 @@ app.post('/api/hubspot/deals/create', async (req, res) => {
 
   const hubspotClient = new Client({ accessToken: token });
 
-  // ✅ Try getting ownerId from session, or fallback to HubSpot token info
   let ownerId = req.session.ownerId;
   if (!ownerId) {
     try {
@@ -1032,10 +1031,23 @@ app.post('/api/hubspot/deals/create', async (req, res) => {
     dealName,
     pipeline,
     stage,
-    companyId
+    companyId,
+    contactId
   } = req.body;
 
-  console.log("📩 Creating deal for company", companyId);
+  const associations = [
+    {
+      to: { id: companyId },
+      types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 5 }]
+    }
+  ];
+
+  if (contactId) {
+    associations.push({
+      to: { id: contactId },
+      types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 3 }]
+    });
+  }
 
   try {
     const response = await hubspotClient.crm.deals.basicApi.create({
@@ -1044,14 +1056,9 @@ app.post('/api/hubspot/deals/create', async (req, res) => {
         pipeline: pipeline || 'default',
         dealstage: stage || 'appointmentscheduled',
         hubspot_owner_id: ownerId,
-        sdr_owner: ownerId // 🔹 Custom field set to same user
+        sdr_owner: ownerId
       },
-      associations: [
-        {
-          to: { id: companyId },
-          types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 5 }]
-        }
-      ]
+      associations
     });
 
     console.log("✅ Deal created:", response.id);
@@ -1061,6 +1068,7 @@ app.post('/api/hubspot/deals/create', async (req, res) => {
     res.status(500).json({ error: 'Failed to create deal', details: err.response?.data || err.message });
   }
 });
+
 
 // create task 
 app.post('/api/hubspot/tasks/create', async (req, res) => {

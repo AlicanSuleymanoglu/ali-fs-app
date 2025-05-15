@@ -294,6 +294,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         pipeline: "default", // ✅ internal pipeline ID
         stage: "appointmentscheduled", // ✅ internal stage ID, not "Meeting Scheduled"
         companyId: selectedCompanyForDialog.id,
+        contactId: selectedContact?.id || null,
       };
 
       const res = await fetch(`${BASE_URL}/api/hubspot/deals/create`, {
