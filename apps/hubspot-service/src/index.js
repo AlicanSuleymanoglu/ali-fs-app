@@ -447,6 +447,9 @@ app.post('/api/meetings/create', async (req, res) => {
     title, companyId, contactId, dealId, meetingType, startTime, endTime, notes, ownerId
   });
 
+  // No matter what, if a contactId is present, we will associate it to the meeting
+  // You can optionally still auto-fetch one if none is passed in
+
   if (!contactId && companyId) {
     try {
       const contactAssocRes = await axios.get(
@@ -457,15 +460,14 @@ app.post('/api/meetings/create', async (req, res) => {
       const contacts = contactAssocRes.data.results;
       if (contacts?.length > 0) {
         contactId = contacts[0].id;
-        console.log("🔄 Auto-selected newest contactId:", contactId);
-      } else {
-        console.warn("⚠️ No contacts associated with company:", companyId);
+        console.log("🔄 Auto-selected contactId:", contactId);
       }
     } catch (err) {
-      console.error("❌ Failed to fetch associated contacts:", err.response?.data || err.message);
+      console.error("⚠️ Could not auto-fetch contactId from company:", err.response?.data || err.message);
     }
   }
 
+  // Now always push associations
   const associations = [];
   if (companyId) {
     associations.push({ to: { id: companyId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 188 }] });
@@ -476,6 +478,7 @@ app.post('/api/meetings/create', async (req, res) => {
   if (dealId) {
     associations.push({ to: { id: dealId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 212 }] });
   }
+
 
   console.log("🔗 Associations for meeting:", JSON.stringify(associations, null, 2));
 

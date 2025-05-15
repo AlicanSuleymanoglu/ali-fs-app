@@ -66,6 +66,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
       startTime: meetingDate.getTime(),
       endTime: endDate.getTime(),
       notes,
+      contactId: selectedCompany.contactId || null,
     };
 
     try {
