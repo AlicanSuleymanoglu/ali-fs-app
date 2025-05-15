@@ -289,35 +289,14 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     setIsSettingUpCompany(true);
 
     try {
-      const term = companyData.name;
-
-      setSearchTerm(term);
-      await searchCompanies(term); // fills searchResults (asynchronously)
-
-      // Wait for React to update state
-      setTimeout(() => {
-        const results = [...searchResults]; // capture current state
-        const match = results.find(
-          (c: Company) => c.name.toLowerCase() === term.toLowerCase()
-        );
-
-        if (match) {
-          handleSelectCompany(match);
-        } else {
-          toast.error("Couldn't find the newly created company in search.");
-          console.warn("Search results at click:", results);
-        }
-
-        setIsSettingUpCompany(false);
-      }, 300); // Give time for state update/render
+      await handleSelectCompany(companyData); // Skip search, go straight into deal/contact flow
     } catch (err) {
       console.error("❌ Error during company flow:", err);
       toast.error("Something went wrong finishing company setup.");
+    } finally {
       setIsSettingUpCompany(false);
     }
   };
-
-
 
 
 

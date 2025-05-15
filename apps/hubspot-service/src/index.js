@@ -492,7 +492,7 @@ app.post('/api/meetings/create', async (req, res) => {
         hs_activity_type: meetingType,
         hs_internal_meeting_notes: notes || '',
         hubspot_owner_id: ownerId,
-        hs_meeting_outcome: meetingOutcome
+        hs_meeting_outcome: meetingOutcome,
       },
       associations
     });
@@ -1366,10 +1366,13 @@ app.post('/api/companies/create', async (req, res) => {
 
     console.log(`✅ New Company Created: ${response.id}`);
     res.status(201).json({
-      success: true,
-      companyId: response.id,
-      message: "Company created successfully",
+      id: response.id,
+      name,
+      address: `${street}, ${postalCode} ${city}`,
+      state,
+      cuisine,
     });
+
   } catch (err) {
     console.error("❌ Error creating company:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to create company" });

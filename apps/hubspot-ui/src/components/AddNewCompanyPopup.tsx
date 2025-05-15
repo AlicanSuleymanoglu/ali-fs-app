@@ -91,6 +91,7 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
             }
 
             const companyData = await response.json();
+            console.log("✅ New company created:", companyData); // This should include 'id'
             toast.success("Company created successfully");
 
             // ✅ Just call parent to handle the flow
