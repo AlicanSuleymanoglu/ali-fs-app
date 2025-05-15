@@ -175,7 +175,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const handleWinDeal = () => {
     if (task.meetingId) {
-      navigate(`/meeting/${task.meetingId}/outcome`);
+      navigate(`/meeting/${task.meetingId}/positive`);
     } else {
       console.warn("⚠️ No meetingId provided in task");
       toast.error("No associated meeting found");
