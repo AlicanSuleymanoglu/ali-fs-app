@@ -17,25 +17,25 @@ items:
       securityPolicy:
         name: global-sp-default
       timeoutSec: 80
-  - apiVersion: policy/v1
-    kind: PodDisruptionBudget
-    metadata:
-      labels:
-        app: "$INT_SERVICE_NAME"
-        app.kubernetes.io/name: "$INT_SERVICE_NAME"
-        app.kubernetes.io/instance: "$INT_SERVICE_NAME"
-        app.kubernetes.io/version: "$INT_SERVICE_VERSION"
-        app.kubernetes.io/component: "$INT_SERVICE_NAME"
-        app.kubernetes.io/component-type: "nodejs"
-        app.kubernetes.io/part-of: "allO"
-      name: "$INT_SERVICE_NAME"
-    spec:
-      minAvailable: 1
-      selector:
-        matchLabels:
-          #app: "$INT_SERVICE_NAME"
-          app.kubernetes.io/name: "$INT_SERVICE_NAME"
-          app.kubernetes.io/instance: "$INT_SERVICE_NAME"
+  # - apiVersion: policy/v1
+  #   kind: PodDisruptionBudget
+  #   metadata:
+  #     labels:
+  #       app: "$INT_SERVICE_NAME"
+  #       app.kubernetes.io/name: "$INT_SERVICE_NAME"
+  #       app.kubernetes.io/instance: "$INT_SERVICE_NAME"
+  #       app.kubernetes.io/version: "$INT_SERVICE_VERSION"
+  #       app.kubernetes.io/component: "$INT_SERVICE_NAME"
+  #       app.kubernetes.io/component-type: "nodejs"
+  #       app.kubernetes.io/part-of: "allO"
+  #     name: "$INT_SERVICE_NAME"
+  #   spec:
+  #     minAvailable: 1
+  #     selector:
+  #       matchLabels:
+  #         #app: "$INT_SERVICE_NAME"
+  #         app.kubernetes.io/name: "$INT_SERVICE_NAME"
+  #         app.kubernetes.io/instance: "$INT_SERVICE_NAME"
   - apiVersion: "v1"
     kind: "Service"
     metadata:
