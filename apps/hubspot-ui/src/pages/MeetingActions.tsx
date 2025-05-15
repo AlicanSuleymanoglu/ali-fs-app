@@ -73,7 +73,7 @@ const MeetingActions: React.FC = () => {
             companyAddress: meetingDetails.address,
             contactId: meetingDetails.contactId,
             contactName: meetingDetails.contactName,
-            dealId: meetingDetails.dealId
+            dealId: meetingDetails.dealId,
           }
         }
       });
@@ -105,7 +105,8 @@ const MeetingActions: React.FC = () => {
         contactName: meetingDetails.contactName,
         meetingType: meetingDetails.type,
         forceCompany: true,
-        dealId: meetingDetails.dealId
+        dealId: meetingDetails.dealId,
+        internalNotes: meetingDetails.internalNotes,
       }
     });
   };

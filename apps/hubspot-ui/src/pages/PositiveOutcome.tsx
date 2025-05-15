@@ -105,6 +105,7 @@ const PositiveOutcome: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to send audio to backend');
       toast.success("Voice note recorded and sent successfully");
+      setStep('reason');
     } catch (err) {
       toast.error("Failed to send voice note");
       console.error("Backend error:", err);
