@@ -64,13 +64,13 @@ const Dashboard: React.FC = () => {
     });
 
     if (sortedMeetings.length === 0) {
-      toast.error('No meetings scheduled for this day.');
       return null; // No meetings today
     }
 
     if (sortedMeetings.length === 1) {
-      toast.error('Only one meeting scheduled. Need at least two locations for a route.');
-      return null;
+      // For a single meeting, just show its location
+      const meeting = sortedMeetings[0];
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meeting.address || '')}`;
     }
 
     // Get the first and last meeting locations
@@ -124,6 +124,17 @@ const Dashboard: React.FC = () => {
     setIsCreateTaskDialogOpen(false);
   };
 
+  // Get meetings for the current day to determine if route button should be disabled
+  const dayMeetings = meetings.filter(meeting => {
+    const meetingDate = new Date(meeting.startTime);
+    return (
+      meetingDate.getDate() === currentDate.getDate() &&
+      meetingDate.getMonth() === currentDate.getMonth() &&
+      meetingDate.getFullYear() === currentDate.getFullYear()
+    );
+  });
+  const hasMeetings = dayMeetings.length > 0;
+
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
   }
@@ -159,10 +170,14 @@ const Dashboard: React.FC = () => {
             onClick={handleOpenMapsRoute}
             variant="outline"
             size="sm"
-            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 h-6 px-2 rounded-full border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
-            title="View route map for today's meetings"
+            className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${hasMeetings
+              ? "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+              : "text-gray-400 border-gray-200 cursor-not-allowed"
+              }`}
+            title={hasMeetings ? "View route map for today's meetings" : "No meetings scheduled for this day"}
+            disabled={!hasMeetings}
           >
-            <MapPin size={14} className="text-blue-600" />
+            <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
             <span className="text-xs font-medium">Route</span>
           </Button>
         }

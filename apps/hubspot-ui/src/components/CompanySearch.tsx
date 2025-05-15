@@ -373,15 +373,25 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       )}
 
       {/* No Deal Dialog */}
-      <Dialog open={showNoDealDialog} onOpenChange={setShowNoDealDialog}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={showNoDealDialog}
+        onOpenChange={(open) => {
+          // Only allow the dialog to close when explicitly handled by our code
+          if (open === false) {
+            // Prevent closing
+            return;
+          }
+          setShowNoDealDialog(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} hideCloseButton>
           <DialogHeader>
             <DialogTitle>No Deal Found</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-gray-500 mb-4">
               No deal was found for {selectedCompanyForDialog?.name}.
-              Would you like to create a new deal with the following details?
+              You need to create a deal with the following details!
             </p>
             <div className="space-y-2 text-sm border-l-2 border-gray-200 pl-3">
               <p><span className="font-medium">Deal Name:</span> {selectedCompanyForDialog?.name} - New Deal</p>

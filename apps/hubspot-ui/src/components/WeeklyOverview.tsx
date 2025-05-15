@@ -52,7 +52,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const getMeetingsForDay = (date: Date) => {
     return meetings.filter(meeting => {
       const meetingDate = new Date(meeting.startTime);
-      return isSameDay(meetingDate, date);
+      return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
     });
   };
 
