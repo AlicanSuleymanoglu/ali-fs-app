@@ -25,7 +25,7 @@ export function useMeetings(
 ) {
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [loading, setLoading] = useState(true);
-    const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
 
     useEffect(() => {
         if (!ownerId) return;
@@ -40,6 +40,7 @@ export function useMeetings(
         })
             .then((res) => res.json())
             .then((data) => {
+                console.log("🧪 Full response:", data); // ADD THIS
                 setMeetings(data.results || []);
                 setLoading(false);
             })

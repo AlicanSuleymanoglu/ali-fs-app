@@ -79,7 +79,7 @@ const MeetingOutcome: React.FC = () => {
               onClick={() => handleOutcome('positive')}
             >
               <ThumbsUp size={18} className="mr-2" />
-              Positive
+              Closed Won
             </Button>
 
             <Button
@@ -87,7 +87,7 @@ const MeetingOutcome: React.FC = () => {
               onClick={() => handleOutcome('negative')}
             >
               <ThumbsDown size={18} className="mr-2" />
-              Negative
+              Closed Lost
             </Button>
 
             <Button
