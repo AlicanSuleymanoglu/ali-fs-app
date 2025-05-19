@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Home, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, Home, Clock, Calendar as CalendarIcon, Check } from 'lucide-react';
 import { Button } from "../components/ui/button.tsx";
 import { toast } from "sonner";
 import AudioRecorder from '../components/AudioRecorder.tsx';
@@ -36,6 +36,8 @@ const FollowUpOutcome: React.FC = () => {
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [isVoiceNoteSent, setIsVoiceNoteSent] = useState(false);
+  const [showTaskSuccess, setShowTaskSuccess] = useState(false);
+  const [createdTaskDate, setCreatedTaskDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!meetingDetails) {
@@ -189,10 +191,23 @@ const FollowUpOutcome: React.FC = () => {
         credentials: 'include',
       });
 
-      toast.success(`Follow-up task scheduled for ${format(taskDate, 'dd.MM.yyyy')}`);
-      setShowTaskOptions(false);
-      setShowDateSelector(false);
-      navigate('/');
+      // Show success state
+      setShowTaskSuccess(true);
+      setCreatedTaskDate(taskDate);
+      toast.success(`Follow-up task scheduled for ${format(taskDate, 'dd.MM.yyyy')}`, {
+        description: "The task has been created and added to your calendar",
+        duration: 4000,
+      });
+
+      // Hide success state after 3 seconds
+      setTimeout(() => {
+        setShowTaskSuccess(false);
+        setCreatedTaskDate(null);
+        setShowTaskOptions(false);
+        setShowDateSelector(false);
+        navigate('/');
+      }, 3000);
+
     } catch (err) {
       console.error("❌ Failed to schedule task:", err);
       toast.error("Failed to schedule follow-up task");
@@ -224,7 +239,24 @@ const FollowUpOutcome: React.FC = () => {
         <div className="w-full max-w-md mx-auto">
           <h2 className="text-xl font-semibold mb-8 text-center">Follow-Up</h2>
 
-          {!showTaskOptions ? (
+          {showTaskSuccess ? (
+            <div className="allo-card bg-green-50 border-green-200">
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <div className="bg-green-100 p-3 rounded-full">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-green-800">Task Created Successfully</h3>
+                  <p className="text-green-600 mt-1">
+                    Follow-up task scheduled for {createdTaskDate && format(createdTaskDate, 'dd.MM.yyyy')}
+                  </p>
+                  <p className="text-sm text-green-500 mt-2">
+                    Redirecting to dashboard...
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : !showTaskOptions ? (
             <>
               <div className="allo-card mb-6">
                 <AudioRecorder onSend={handleAudioSend} />
@@ -256,17 +288,28 @@ const FollowUpOutcome: React.FC = () => {
 
               {showDateSelector ? (
                 <div className="mb-4">
-                  <Popover open={true}>
+                  <Popover open={showDateSelector} onOpenChange={setShowDateSelector}>
                     <PopoverTrigger asChild>
-                      <div></div>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd.MM.yyyy") : "Select a date"}
+                      </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 pointer-events-auto" align="center">
+                    <PopoverContent className="w-auto p-0" align="center">
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={handleCalendarSelect}
+                        onSelect={(selectedDate) => {
+                          if (selectedDate) {
+                            setDate(selectedDate);
+                            setShowDateSelector(false);
+                            scheduleTask(selectedDate);
+                          }
+                        }}
                         initialFocus
-                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>

@@ -1,8 +1,17 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Play, Square, Send } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Send, RefreshCw, Check } from 'lucide-react';
 import { Button } from "../components/ui/button.tsx";
 import { useToast } from "../hooks/use-toast.ts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog.tsx";
 
 interface AudioRecorderProps {
   onSend?: (audioBlob: Blob) => void;
@@ -14,6 +23,8 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [barHeights, setBarHeights] = useState<number[]>(Array(20).fill(3));
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -147,16 +158,38 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
     }
   };
 
+  const handleRetake = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setRecordingTime(0);
+  };
+
   const handleSend = () => {
+    if (audioBlob && onSend) {
+      setShowConfirmDialog(true);
+    }
+  };
+
+  const confirmSend = () => {
     if (audioBlob && onSend) {
       onSend(audioBlob);
       toast({
         title: 'Voice Note Sent',
         description: 'Your voice note has been sent successfully.',
       });
+      // Show success indicator
+      setShowSuccess(true);
+      // Hide success indicator after 2 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 2000);
       // Reset state
       setAudioBlob(null);
       setAudioUrl(null);
+      setShowConfirmDialog(false);
     }
   };
 
@@ -190,6 +223,11 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
           <span className="recording-pulse text-red-500">{formatTime(recordingTime)}</span>
         ) : audioUrl ? (
           <span>Recording ready</span>
+        ) : showSuccess ? (
+          <span className="text-green-600 flex items-center justify-center gap-1">
+            <Check size={16} />
+            Voice note sent
+          </span>
         ) : (
           <span>Click to record</span>
         )}
@@ -213,12 +251,25 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
               <Play size={18} />
             </Button>
             <Button
+              className="bg-red-500 hover:bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center"
+              onClick={handleRetake}
+            >
+              <RefreshCw size={18} />
+            </Button>
+            <Button
               className="bg-allo-primary hover:bg-allo-primary/80 text-white rounded-full w-12 h-12 flex items-center justify-center"
               onClick={handleSend}
             >
               <Send size={18} />
             </Button>
           </>
+        ) : showSuccess ? (
+          <Button
+            className="bg-green-500 hover:bg-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center"
+            disabled
+          >
+            <Check size={18} />
+          </Button>
         ) : (
           <Button
             className="bg-allo-primary hover:bg-allo-primary/80 text-white rounded-full w-12 h-12 flex items-center justify-center"
@@ -232,6 +283,23 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} className="hidden" />
       )}
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Voice Note</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to send this voice note? You won't be able to retake it after sending.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSend} className="bg-allo-primary hover:bg-allo-primary/80">
+              Send Voice Note
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

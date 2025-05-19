@@ -475,7 +475,7 @@ app.post('/api/meetings/create', async (req, res) => {
   } = req.body;
 
   console.log("📤 Incoming meeting create request:", {
-    title, companyId, contactId, dealId, meetingType, startTime, endTime, notes, ownerId
+    title, companyId, contactId, dealId, meetingType, startTime, endTime, internalNotes, ownerId
   });
 
   // No matter what, if a contactId is present, we will associate it to the meeting
@@ -931,7 +931,7 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
 
   const hubspotClient = new Client({ accessToken: token });
   const meetingId = req.params.id;
-  const { startTime, endTime, notes } = req.body;
+  const { startTime, endTime, internalNotes } = req.body;
 
   try {
     // Send timestamps as strings
@@ -941,7 +941,7 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
         hs_meeting_end_time: String(endTime),
         hs_timestamp: String(startTime),
         hs_meeting_outcome: "RESCHEDULED",
-        hs_internal_meeting_notes: notes || '',
+        hs_internal_meeting_notes: internalNotes || '',
       }
     });
     // Log the FULL response from HubSpot!

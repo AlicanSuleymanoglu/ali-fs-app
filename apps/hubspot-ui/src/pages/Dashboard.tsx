@@ -22,8 +22,9 @@ const Dashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState<boolean>(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const location = useLocation();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshCooldown, setIsRefreshCooldown] = useState(false);
+  const location = useLocation();
 
   // Use the date from navigation state if available
   useEffect(() => {
@@ -164,7 +165,7 @@ const Dashboard: React.FC = () => {
           ownerId: user.user_id,
           startTime,
           endTime,
-          forceRefresh: true // ✅ this is the fix
+          forceRefresh: true
         })
       });
 
@@ -191,6 +192,7 @@ const Dashboard: React.FC = () => {
 
       setMeetings(hubspotMeetings);
       toast.success('Meetings refreshed successfully');
+      setIsRefreshCooldown(true);
     } catch (err) {
       console.error("❌ Failed to refresh meetings", err);
       toast.error('Failed to refresh meetings');
@@ -198,6 +200,21 @@ const Dashboard: React.FC = () => {
       setIsRefreshing(false);
     }
   };
+
+  // Handle refresh cooldown
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (isRefreshCooldown) {
+      timeoutId = setTimeout(() => {
+        setIsRefreshCooldown(false);
+      }, 10000); // 10 seconds
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isRefreshCooldown]);
 
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
@@ -235,10 +252,14 @@ const Dashboard: React.FC = () => {
               onClick={handleRefresh}
               variant="outline"
               size="sm"
-              className="flex items-center gap-1 h-6 px-2 rounded-full transition-colors text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
-              disabled={isRefreshing}
+              className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${isRefreshCooldown
+                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                : "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                }`}
+              disabled={isRefreshing || isRefreshCooldown}
+              title={isRefreshCooldown ? "Please wait 10 seconds before refreshing again" : "Refresh meetings"}
             >
-              <RefreshCw size={14} className={`text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw size={14} className={`${isRefreshCooldown ? "text-gray-400" : "text-blue-600"} ${isRefreshing ? 'animate-spin' : ''}`} />
               <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
             </Button>
             <Button
