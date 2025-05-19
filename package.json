@@ -49,6 +49,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@hubspot/api-client": "^12.1.0"
+    "@hubspot/api-client": "^12.1.0",
+    "node-cache": "^5.1.2"
   }
 }
