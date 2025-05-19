@@ -105,13 +105,13 @@ rm -rf apps/$OUTPUT_FOLDER/public
 cd $DIR
 
 docker run ${DOCKER_USE_TTY} --rm \
-  -u $(id -u ${USER}):$(id -g ${USER}) \
-  -v "$(pwd)":"$(pwd)"  \
-  -w "$(pwd)" \
-  -e BUILD_APP="$BUILD_APP" \
-  -e OUTPUT_FOLDER="$OUTPUT_FOLDER" \
-  --entrypoint /bin/bash \
-  ${BUILD_IMAGE} -c 'turbo prune $BUILD_APP --docker --include-dependencies --out-dir "$OUTPUT_FOLDER";'
+    -u $(id -u ${USER}):$(id -g ${USER}) \
+    -v "$(pwd)":"$(pwd)"  \
+    -w "$(pwd)" \
+    -e BUILD_APP="$BUILD_APP" \
+    -e OUTPUT_FOLDER="$OUTPUT_FOLDER" \
+    --entrypoint /bin/bash \
+    ${BUILD_IMAGE} -c 'turbo prune $BUILD_APP --docker --out-dir "$OUTPUT_FOLDER";'
 echo "= "
 echo "======================================"
 
