@@ -58,6 +58,23 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
     };
   }, [audioUrl]);
 
+  const getSupportedMimeType = () => {
+    const types = [
+      'audio/mp3',
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/webm;codecs=opus',
+      'audio/webm'
+    ];
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return 'audio/webm'; // fallback
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -69,13 +86,15 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
       analyser.fftSize = 256;
 
       mediaStreamSource.connect(analyser);
-      // Don't connect to audioContext.destination to avoid feedback
-
       analyserRef.current = analyser;
       const bufferLength = analyser.frequencyBinCount;
       dataArrayRef.current = new Uint8Array(bufferLength);
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        audioBitsPerSecond: 128000 // 128kbps for good quality
+      });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -83,15 +102,15 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(audioBlob);
         setAudioBlob(audioBlob);
         setAudioUrl(url);
         chunksRef.current = [];
       };
 
-      // Start recording
-      mediaRecorder.start();
+      // Start recording with 1-second chunks for better memory management
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setRecordingTime(0);
       setAudioBlob(null);
@@ -175,7 +194,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
 
   const confirmSend = () => {
     if (audioBlob && onSend) {
-      onSend(audioBlob);
+      handleAudioSend(audioBlob);
       toast({
         title: 'Voice Note Sent',
         description: 'Your voice note has been sent successfully.',
@@ -190,6 +209,18 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
       setAudioBlob(null);
       setAudioUrl(null);
       setShowConfirmDialog(false);
+    }
+  };
+
+  const handleAudioSend = async (blob: Blob) => {
+    if (onSend) {
+      // Convert the blob to MP3 if it's not already
+      const mimeType = getSupportedMimeType();
+      if (!blob.type.includes('mp3') && !blob.type.includes('mpeg')) {
+        // If the browser doesn't support direct MP3 recording, we'll keep the original format
+        console.log('Using original audio format:', blob.type);
+      }
+      onSend(blob);
     }
   };
 

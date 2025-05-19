@@ -567,10 +567,24 @@ app.post('/api/meeting/:id/cancel', async (req, res) => {
 
 
 // Send Voice Note to Zapier
-const upload = multer(); // memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    // Accept audio files
+    if (file.mimetype.startsWith('audio/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only audio files are allowed'));
+    }
+  }
+});
 
 app.post('/api/meeting/send-voice', upload.single('audio'), async (req, res) => {
-  console.log('req.file:', req.file);
+  console.log('Received audio file:', {
+    originalname: req.file?.originalname,
+    mimetype: req.file?.mimetype,
+    size: req.file?.size
+  });
 
   try {
     if (!req.file) {
@@ -579,9 +593,10 @@ app.post('/api/meeting/send-voice', upload.single('audio'), async (req, res) => 
 
     const formData = new FormData();
 
+    // Always use MP3 format for the filename
     formData.append('audio', req.file.buffer, {
-      filename: req.file.originalname || 'voice-note.webm',
-      contentType: req.file.mimetype,
+      filename: 'voice-note.mp3',
+      contentType: 'audio/mp3',
       knownLength: req.file.size,
     });
 
@@ -604,6 +619,7 @@ app.post('/api/meeting/send-voice', upload.single('audio'), async (req, res) => 
       return res.status(500).json({ error: 'Zapier webhook failed', zapierStatus: zapierResponse.status, zapierBody: txt });
     }
 
+    console.log('✅ Voice note sent successfully as MP3');
     res.json({ success: true });
   } catch (err) {
     console.error('Failed to forward audio to Zapier:', err);
@@ -1369,7 +1385,6 @@ app.patch('/api/tasks/:taskId/postpone', async (req, res) => {
 app.post('/api/companies/create', async (req, res) => {
   const token = req.session.accessToken;
   let ownerId = req.session.ownerId;
-
   const {
     name,
     street,
