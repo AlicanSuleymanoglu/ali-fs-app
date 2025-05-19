@@ -175,51 +175,81 @@ app.get('/api/me', checkTokenExpiration, async (req, res) => {
 app.post('/api/meetings', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
+  function getRolling21DayWindow() {
+    const today = new Date();
+    const day = today.getDay(); // Sunday - Saturday : 0 - 6
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
 
-  const { ownerId, startTime, endTime } = req.body;
-  console.log("📩 Incoming body:", req.body);
+    // Start: Last week's Monday
+    const start = new Date(today);
+    start.setDate(today.getDate() + diffToMonday - 7);
+    start.setHours(0, 0, 0, 0);
+
+    // End: Next week's Sunday
+    const end = new Date(today);
+    end.setDate(today.getDate() + diffToMonday + 13); // +13 to get to next week's Sunday
+    end.setHours(23, 59, 59, 999);
+
+    return { startTime: start.getTime(), endTime: end.getTime() };
+  }
+
+
+  const { ownerId } = req.body;
+  const { startTime, endTime } = getRolling21DayWindow(); // ✅ USE THIS
+
+  // Time window: Last week to next week
+  const now = new Date();
+  const startOfLastWeek = new Date(now);
+  startOfLastWeek.setDate(now.getDate() - 7);
+  const endOfNextWeek = new Date(now);
+  endOfNextWeek.setDate(now.getDate() + 7);
+
+
+  let meetings = [];
+  let after = undefined;
 
   try {
-    const response = await axios.post('https://api.hubapi.com/crm/v3/objects/meetings/search', {
-      filterGroups: [{
-        filters: [
-          { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
-          { propertyName: "hs_meeting_start_time", operator: "GTE", value: startTime },
-          { propertyName: "hs_meeting_start_time", operator: "LTE", value: endTime }
-        ]
-      }],
-      properties: [
-        "hs_object_id",
-        "hs_timestamp",
-        "hs_meeting_title",
-        "hubspot_owner_id",
-        "hs_internal_meeting_notes",
-        "hs_meeting_location",
-        "hs_meeting_start_time",
-        "hs_meeting_end_time",
-        "hs_meeting_outcome",
-        "hs_activity_type"
-      ],
-      limit: 100
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    do {
+      const response = await axios.post(
+        'https://api.hubapi.com/crm/v3/objects/meetings/search',
+        {
+          filterGroups: [{
+            filters: [
+              { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+              { propertyName: "hs_meeting_start_time", operator: "GTE", value: startTime },
+              { propertyName: "hs_meeting_start_time", operator: "LTE", value: endTime }
+            ]
+          }],
+          properties: [
+            "hs_object_id", "hs_timestamp", "hs_meeting_title",
+            "hubspot_owner_id", "hs_internal_meeting_notes",
+            "hs_meeting_location", "hs_meeting_start_time",
+            "hs_meeting_end_time", "hs_meeting_outcome", "hs_activity_type"
+          ],
+          limit: 100,
+          after: after,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      meetings.push(...response.data.results);
+      after = response.data.paging?.next?.after || undefined;
+
+    } while (after);
 
     const meetingsWithDetails = await Promise.all(
-      response.data.results.map(async (meeting) => {
+      meetings.map(async (meeting) => {
         const { id, properties } = meeting;
 
+        // Default values
         let companyName = 'Unknown Company';
         let companyAddress = 'Unknown Address';
         let companyId = null;
-
         let contactName = 'Unknown Contact';
         let contactPhone = '';
         let contactId = null;
-
         let dealId = null;
 
-        // Fetch associated company
         try {
           const assocRes = await axios.get(
             `https://api.hubapi.com/crm/v3/objects/meetings/${id}/associations/companies`,
@@ -228,31 +258,18 @@ app.post('/api/meetings', async (req, res) => {
           companyId = assocRes.data.results?.[0]?.id || null;
           if (companyId) {
             const companyRes = await axios.get(
-              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,address,address1,address_street,city`,
+              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,address,city`,
               { headers: { Authorization: `Bearer ${token}` } }
             );
             companyName = companyRes.data.properties.name || 'Unnamed Company';
-
-            // Combine street address and city
-            const street =
-              companyRes.data.properties.address || '';
+            const street = companyRes.data.properties.address || '';
             const city = companyRes.data.properties.city || '';
-
-            if (street && city) {
-              companyAddress = `${street}, ${city}`;
-            } else if (street) {
-              companyAddress = street;
-            } else if (city) {
-              companyAddress = city;
-            } else {
-              companyAddress = 'Unknown Address';
-            }
+            companyAddress = [street, city].filter(Boolean).join(', ') || 'Unknown Address';
           }
         } catch (e) {
           console.warn(`⚠️ Could not fetch company for meeting ${id}`);
         }
 
-        // Fetch associated contact
         try {
           const assocContactRes = await axios.get(
             `https://api.hubapi.com/crm/v3/objects/meetings/${id}/associations/contacts`,
@@ -271,7 +288,6 @@ app.post('/api/meetings', async (req, res) => {
           console.warn(`⚠️ Could not fetch contact for meeting ${id}`);
         }
 
-        // Fetch associated deal
         try {
           const dealsRes = await axios.get(
             `https://api.hubapi.com/crm/v4/objects/meetings/${id}/associations/deals`,
@@ -290,7 +306,7 @@ app.post('/api/meetings', async (req, res) => {
           startTime: properties.hs_meeting_start_time,
           endTime: properties.hs_meeting_end_time,
           date,
-          address: companyAddress || 'No location',
+          address: companyAddress,
           status: properties.hs_meeting_outcome || 'scheduled',
           type: properties.hs_activity_type || 'meeting',
           companyName,
@@ -299,7 +315,7 @@ app.post('/api/meetings', async (req, res) => {
           contactPhone,
           contactId,
           dealId,
-          internalNotes: properties.hs_internal_meeting_notes || ''
+          internalNotes: properties.hs_internal_meeting_notes || '',
         };
       })
     );
@@ -310,6 +326,7 @@ app.post('/api/meetings', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch meetings' });
   }
 });
+
 
 
 
@@ -332,7 +349,8 @@ app.get('/api/meeting/:id', async (req, res) => {
       "hs_meeting_location",
       "hs_meeting_outcome",
       "hs_activity_type",
-      "dealId"
+      "dealId",
+      "hs_internal_meeting_notes",
     ]);
 
     res.json({
@@ -450,7 +468,7 @@ app.post('/api/meetings/create', async (req, res) => {
     meetingType,
     startTime,
     endTime,
-    notes,
+    internalNotes,
   } = req.body;
 
   console.log("📤 Incoming meeting create request:", {
@@ -503,7 +521,7 @@ app.post('/api/meetings/create', async (req, res) => {
         hs_meeting_end_time: endTime,
         hs_timestamp: startTime,
         hs_activity_type: meetingType,
-        hs_internal_meeting_notes: notes || '',
+        hs_internal_meeting_notes: internalNotes || '',
         hubspot_owner_id: ownerId,
         hs_meeting_outcome: meetingOutcome,
       },
