@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../hooks/useUser.ts';
 import { useTasks } from '../hooks/useTasks.ts';
-import { format } from 'date-fns';
+import { format, getTime, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, RefreshCw } from 'lucide-react';
 
 // Import our newly created components
 import WeeklyOverview from '../components/WeeklyOverview.tsx';
@@ -23,6 +23,7 @@ const Dashboard: React.FC = () => {
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState<boolean>(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const location = useLocation();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Use the date from navigation state if available
   useEffect(() => {
@@ -144,6 +145,60 @@ const Dashboard: React.FC = () => {
   });
   const hasMeetings = dayMeetings.length > 0;
 
+  const handleRefresh = async () => {
+    if (!user?.user_id) {
+      toast.error('User not found');
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      const startTime = getTime(startOfWeek(new Date(), { weekStartsOn: 1 }));
+      const endTime = getTime(endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 }));
+
+      const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ownerId: user.user_id,
+          startTime,
+          endTime,
+          forceRefresh: true // ✅ this is the fix
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to refresh meetings');
+      }
+
+      const data = await res.json();
+      const hubspotMeetings = (data.results || []).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        contactName: item.contactName,
+        companyName: item.companyName,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        date: item.date,
+        type: item.type,
+        status: item.status,
+        address: item.address,
+        dealId: item.dealId,
+        companyId: item.companyId,
+        contactId: item.contactId
+      }));
+
+      setMeetings(hubspotMeetings);
+      toast.success('Meetings refreshed successfully');
+    } catch (err) {
+      console.error("❌ Failed to refresh meetings", err);
+      toast.error('Failed to refresh meetings');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
   }
@@ -175,20 +230,32 @@ const Dashboard: React.FC = () => {
         onSelectMeeting={(meeting) => setSelectedMeeting(meeting)}
         onFetchedMeetings={(meetings) => setMeetings(meetings)}
         actionButton={
-          <Button
-            onClick={handleOpenMapsRoute}
-            variant="outline"
-            size="sm"
-            className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${hasMeetings
-              ? "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
-              : "text-gray-400 border-gray-200 cursor-not-allowed"
-              }`}
-            title={hasMeetings ? "View route map for today's meetings" : "No meetings scheduled for this day"}
-            disabled={!hasMeetings}
-          >
-            <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
-            <span className="text-xs font-medium">Route</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 h-6 px-2 rounded-full transition-colors text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+              disabled={isRefreshing}
+            >
+              <RefreshCw size={14} className={`text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
+            </Button>
+            <Button
+              onClick={handleOpenMapsRoute}
+              variant="outline"
+              size="sm"
+              className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${hasMeetings
+                ? "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                : "text-gray-400 border-gray-200 cursor-not-allowed"
+                }`}
+              title={hasMeetings ? "View route map for today's meetings" : "No meetings scheduled for this day"}
+              disabled={!hasMeetings}
+            >
+              <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
+              <span className="text-xs font-medium">Route</span>
+            </Button>
+          </div>
         }
       />
 
