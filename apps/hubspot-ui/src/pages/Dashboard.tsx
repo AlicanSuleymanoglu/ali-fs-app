@@ -174,21 +174,39 @@ const Dashboard: React.FC = () => {
       }
 
       const data = await res.json();
-      const hubspotMeetings = (data.results || []).map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        contactName: item.contactName,
-        companyName: item.companyName,
-        startTime: item.startTime,
-        endTime: item.endTime,
-        date: item.date,
-        type: item.type,
-        status: item.status,
-        address: item.address,
-        dealId: item.dealId,
-        companyId: item.companyId,
-        contactId: item.contactId
-      }));
+      const hubspotMeetings = (data.results || []).map((item: any) => {
+        // Clean up internal notes by removing HTML tags and extra whitespace
+        let cleanNotes = item.internalNotes || '';
+        if (cleanNotes) {
+          // Remove HTML tags and decode HTML entities
+          cleanNotes = cleanNotes
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+            .replace(/&amp;/g, '&') // Replace &amp; with &
+            .replace(/&lt;/g, '<') // Replace &lt; with <
+            .replace(/&gt;/g, '>') // Replace &gt; with >
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim(); // Remove leading/trailing whitespace
+        }
+
+        return {
+          id: item.id,
+          title: item.title,
+          contactName: item.contactName,
+          companyName: item.companyName,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          date: item.date,
+          type: item.type,
+          status: item.status,
+          address: item.address,
+          dealId: item.dealId,
+          companyId: item.companyId,
+          contactId: item.contactId,
+          contactPhone: item.contactPhone,
+          internalNotes: cleanNotes
+        };
+      });
 
       setMeetings(hubspotMeetings);
       toast.success('Meetings refreshed successfully');
