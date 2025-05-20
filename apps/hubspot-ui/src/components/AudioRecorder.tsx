@@ -23,7 +23,6 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [barHeights, setBarHeights] = useState<number[]>(Array(20).fill(3));
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -188,27 +187,21 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
 
   const handleSend = () => {
     if (audioBlob && onSend) {
-      setShowConfirmDialog(true);
-    }
-  };
-
-  const confirmSend = () => {
-    if (audioBlob && onSend) {
       handleAudioSend(audioBlob);
       toast({
         title: 'Voice Note Sent',
         description: 'Your voice note has been sent successfully.',
+        duration: 4000, // 4 seconds
       });
       // Show success indicator
       setShowSuccess(true);
-      // Hide success indicator after 2 seconds
+      // Hide success indicator after 4 seconds
       setTimeout(() => {
         setShowSuccess(false);
-      }, 2000);
+      }, 4000);
       // Reset state
       setAudioBlob(null);
       setAudioUrl(null);
-      setShowConfirmDialog(false);
     }
   };
 
@@ -314,23 +307,6 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSend }) => {
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} className="hidden" />
       )}
-
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send Voice Note</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to send this voice note? You won't be able to retake it after sending.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSend} className="bg-allo-primary hover:bg-allo-primary/80">
-              Send Voice Note
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
