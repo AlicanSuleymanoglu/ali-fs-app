@@ -102,6 +102,7 @@ const MeetingActions: React.FC = () => {
         companyId: meetingDetails.companyId,
         companyAddress: meetingDetails.address,
         contactId: meetingDetails.contactId,
+        contactPhone: meetingDetails.contactPhone,
         contactName: meetingDetails.contactName,
         meetingType: meetingDetails.type,
         forceCompany: true,

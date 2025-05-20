@@ -144,6 +144,8 @@ const AddMeeting: React.FC = () => {
       notes,
       dealId: prefilledData.dealId,
       contactId: prefilledData.contactId,
+      contactPhone: prefilledData.contactPhone,
+      internalNotes: prefilledData.internalNotes,
     };
     console.log("Submitting meeting", payload);
 
