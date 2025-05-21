@@ -7,6 +7,8 @@ import AudioRecorder from '../components/AudioRecorder.tsx';
 import ClosedLostReasonForm from '../components/ClosedLostReasonForm.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx'; // if using context
 import { useUser } from '../hooks/useUser.ts';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
+
 
 
 const NegativeOutcome: React.FC = () => {
@@ -17,7 +19,7 @@ const NegativeOutcome: React.FC = () => {
   // 1. Try navigation state
   const navDealId = location.state?.dealId;
   // 2. Try context
-  const { meetings } = useMeetingContext?.() || { meetings: [] }; // context may be optional
+  const { meetings, setMeetings } = useMeetingContext();
   const contextDealId = meetings.find(m => m.id === id)?.dealId;
 
   // 3. Local state, preferring nav > context
@@ -85,21 +87,32 @@ const NegativeOutcome: React.FC = () => {
 
 
   const handleComplete = async () => {
-    // Step 1: Mark meeting as completed in backend (and HubSpot)
     try {
       const response = await fetch(`${BASE_URL}/api/meeting/${id}/mark-completed`, {
         method: "POST",
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to mark meeting as completed");
+
+      // Refresh meetings once at the end of the flow
+      if (user?.user_id) {
+        await refreshMeetings(user.user_id, setMeetings);
+      }
+
       toast.success("Meeting marked as negative outcome and completed!");
-      // Step 2: Navigate back to the meeting outcome page
       navigate(`/meeting/${id}/outcome`);
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
-      // Still navigate back to the meeting outcome page even on error
-      navigate(`/meeting/${id}/outcome`);
+      // Still try to refresh meetings even if marking as completed failed
+      if (user?.user_id) {
+        try {
+          await refreshMeetings(user.user_id, setMeetings);
+        } catch (refreshErr) {
+          console.error("Error refreshing meetings:", refreshErr);
+        }
+      }
+      navigate(`/dashboard`);
     }
   };
 

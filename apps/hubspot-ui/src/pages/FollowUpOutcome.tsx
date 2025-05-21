@@ -11,6 +11,7 @@ import { cn } from "../lib/utils.ts";
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom'; // already imported? good
 import { useUser } from '../hooks/useUser.ts';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
 
 
 
@@ -28,7 +29,7 @@ const FollowUpOutcome: React.FC = () => {
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
-  const { meetings } = useMeetingContext();
+  const { meetings, setMeetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
   const ownerId = meetingDetails?.ownerId || user?.user_id;
@@ -81,8 +82,20 @@ const FollowUpOutcome: React.FC = () => {
     }
   };
 
+  const checkCompanyName = () => {
+    if (!meetingDetails?.companyName || meetingDetails.companyName.toLowerCase() === 'unknown') {
+      toast.error("Unknown Company", {
+        description: "Please refresh the dashboard to update meeting data",
+        duration: 4000,
+      });
+      navigate('/dashboard');
+      return false;
+    }
+    return true;
+  };
 
   const handleScheduleFollowUp = async () => {
+    if (!checkCompanyName()) return;
     if (!meetingDetails) return;
 
     // Update deal stage to 'in-negotiation'
@@ -129,6 +142,8 @@ const FollowUpOutcome: React.FC = () => {
   };
 
   const handleTaskSchedule = (timeframe: string) => {
+    if (!checkCompanyName()) return;
+
     const today = new Date();
     let taskDate = new Date(today);
 
@@ -191,6 +206,11 @@ const FollowUpOutcome: React.FC = () => {
         credentials: 'include',
       });
 
+      // Refresh meetings once at the end of the flow
+      if (user?.user_id) {
+        await refreshMeetings(user.user_id, setMeetings);
+      }
+
       // Show success state
       setShowTaskSuccess(true);
       setCreatedTaskDate(taskDate);
@@ -205,12 +225,20 @@ const FollowUpOutcome: React.FC = () => {
         setCreatedTaskDate(null);
         setShowTaskOptions(false);
         setShowDateSelector(false);
-        navigate('/');
+        navigate('/dashboard');
       }, 3000);
 
     } catch (err) {
       console.error("❌ Failed to schedule task:", err);
       toast.error("Failed to schedule follow-up task");
+      // Still try to refresh meetings even if task creation failed
+      if (user?.user_id) {
+        try {
+          await refreshMeetings(user.user_id, setMeetings);
+        } catch (refreshErr) {
+          console.error("Error refreshing meetings:", refreshErr);
+        }
+      }
     }
   };
 
@@ -274,7 +302,11 @@ const FollowUpOutcome: React.FC = () => {
 
                 <Button
                   className="flex items-center justify-center py-4 bg-amber-500 hover:bg-amber-600 text-white"
-                  onClick={() => setShowTaskOptions(true)}
+                  onClick={() => {
+                    if (checkCompanyName()) {
+                      setShowTaskOptions(true);
+                    }
+                  }}
                   disabled={isCompleted || !isVoiceNoteSent}
                 >
                   <Clock size={18} className="mr-2" />

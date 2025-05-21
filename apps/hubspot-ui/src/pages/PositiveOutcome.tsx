@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import ClosedWonReasonForm from '../components/ClosedWonReasonForm.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useUser } from '../hooks/useUser.ts';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
+
 
 
 const PositiveOutcome: React.FC = () => {
@@ -18,7 +20,7 @@ const PositiveOutcome: React.FC = () => {
 
 
   const navDealId = location.state?.dealId;
-  const { meetings } = useMeetingContext?.() || { meetings: [] };
+  const { meetings, setMeetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
   const ownerId = meetingDetails?.ownerId || user?.user_id;
@@ -134,13 +136,26 @@ const PositiveOutcome: React.FC = () => {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to mark meeting as completed");
+
+      // Refresh meetings once at the end of the flow
+      if (user?.user_id) {
+        await refreshMeetings(user.user_id, setMeetings);
+      }
+
       toast.success("Meeting marked as positive outcome and completed!");
-      // Navigate to success page instead of dashboard
       navigate('/contract-success');
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
-      navigate('/contract-success'); // Navigate to success page on error as well
+      // Still try to refresh meetings even if marking as completed failed
+      if (user?.user_id) {
+        try {
+          await refreshMeetings(user.user_id, setMeetings);
+        } catch (refreshErr) {
+          console.error("Error refreshing meetings:", refreshErr);
+        }
+      }
+      navigate('/contract-success');
     }
   };
 

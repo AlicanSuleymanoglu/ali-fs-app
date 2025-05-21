@@ -11,6 +11,8 @@ import {
 import { Button } from '../components/ui/button.tsx';
 import { useIsMobile } from "../hooks/use-mobile.tsx";
 import { useMeetingContext } from '../context/MeetingContext.tsx'; // ✅ import the context
+import { useUser } from '../hooks/useUser.ts';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,8 +31,9 @@ const MeetingActions: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const { meetings } = useMeetingContext(); // ✅ use context
+  const { meetings, setMeetings } = useMeetingContext(); // ✅ use context
   const [meetingDetails, setMeetingDetails] = useState<any | null>(null);
+  const user = useUser();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   useEffect(() => {
@@ -65,6 +68,12 @@ const MeetingActions: React.FC = () => {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Failed to cancel meeting');
+
+      // Refresh meetings after successful cancellation
+      if (user?.user_id) {
+        await refreshMeetings(user.user_id, setMeetings);
+      }
+
       navigate('/meeting-canceled', {
         state: {
           meetingDetails: {
@@ -78,6 +87,7 @@ const MeetingActions: React.FC = () => {
         }
       });
     } catch (err) {
+      console.error('Failed to cancel meeting:', err);
       alert('Failed to cancel meeting. Please try again.');
     }
   };

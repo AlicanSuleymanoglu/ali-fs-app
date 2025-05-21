@@ -7,6 +7,8 @@ import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
 import { MapPin, RefreshCw } from 'lucide-react';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
+
 
 // Import our newly created components
 import WeeklyOverview from '../components/WeeklyOverview.tsx';
