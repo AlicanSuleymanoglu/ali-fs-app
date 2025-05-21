@@ -32,6 +32,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const [showDisqualifyDialog, setShowDisqualifyDialog] = useState(false);
   const [newDueDate, setNewDueDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showMeetingCalendar, setShowMeetingCalendar] = useState(false);
+  const [selectedMeetingDate, setSelectedMeetingDate] = useState<Date | null>(null);
+  const [selectedMeetingTime, setSelectedMeetingTime] = useState<string>("10:00");
+  const [meetingNotes, setMeetingNotes] = useState<string>("");
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
@@ -41,23 +45,88 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     if (onClick) onClick();
   };
 
-  const handleScheduleMeeting = () => {
+  const handleScheduleMeetingClick = () => {
     setIsDialogOpen(false);
-    // Directly navigate to schedule meeting with prefilled values
-    navigate('/add-meeting', {
-      state: {
-        companyName: task.restaurantName,
-        companyId: task.companyId || `task-${task.id}`, // Preselect the company
-        contactName: task.contactName,
-        contactId: task.contactId,
-        dealId: task.dealId,
-        meetingType: "Sales Followup", // Preselect meeting type
-        forceCompany: true, // This will lock the company selection
-        taskId: task.id,
-      }
-    });
+    setShowMeetingCalendar(true);
   };
 
+  const handleMeetingDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedMeetingDate(date);
+    }
+  };
+
+  const generateTimeOptions = () => {
+    const options = [];
+    const startHour = 7; // 7 AM
+    const endHour = 21; // 9 PM
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute of [0, 30]) {
+        const formattedHour = hour.toString().padStart(2, '0');
+        const formattedMinute = minute.toString().padStart(2, '0');
+        const timeValue = `${formattedHour}:${formattedMinute}`;
+        options.push(
+          <SelectItem key={timeValue} value={timeValue}>
+            {timeValue}
+          </SelectItem>
+        );
+      }
+    }
+    return options;
+  };
+
+  const handleScheduleMeeting = async () => {
+    if (!selectedMeetingDate) {
+      toast.error("Please select a date for the meeting");
+      return;
+    }
+
+    const meetingDate = new Date(selectedMeetingDate);
+    const [hour, minute] = selectedMeetingTime.split(":").map(Number);
+    meetingDate.setHours(hour, minute, 0, 0);
+    const endTime = new Date(meetingDate);
+    endTime.setHours(endTime.getHours() + 1);
+
+    const payload = {
+      title: "Sales Followup",
+      companyId: task.companyId || `task-${task.id}`,
+      dealId: task.dealId,
+      meetingType: "Sales Followup",
+      startTime: meetingDate.getTime(),
+      endTime: endTime.getTime(),
+      internalNotes: meetingNotes || `Follow-up meeting for ${task.restaurantName}`,
+      contactId: task.contactId,
+    };
+
+    try {
+      // Create the meeting
+      const res = await fetch(`${BASE_URL}/api/meetings/create`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Failed to create meeting');
+      const newMeeting = await res.json();
+
+      if (!newMeeting?.meetingId) {
+        throw new Error('Failed to retrieve new meeting ID');
+      }
+
+      // Mark the task as completed
+      await onComplete(task.id);
+
+      toast.success("Meeting scheduled and task marked as completed!");
+      setShowMeetingCalendar(false);
+
+      // Navigate to the meeting outcome page
+      navigate(`/dashboard`);
+    } catch (err) {
+      console.error("Error scheduling meeting:", err);
+      toast.error("Failed to schedule meeting");
+    }
+  };
 
   const handleCall = () => {
     window.location.href = `tel:${task.phoneNumber}`;
@@ -180,8 +249,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     setIsDialogOpen(false);
   };
 
-
-
   return (
     <>
       <Card
@@ -240,7 +307,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
               Call
             </Button>
             <Button
-              onClick={handleScheduleMeeting}
+              onClick={handleScheduleMeetingClick}
               className="w-full flex items-center justify-center"
               variant="outline"
               size="sm"
@@ -303,6 +370,59 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={showMeetingCalendar} onOpenChange={setShowMeetingCalendar}>
+        <DialogContent className="sm:max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle>Schedule Meeting</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Date</Label>
+              <CalendarComponent
+                mode="single"
+                selected={selectedMeetingDate || undefined}
+                onSelect={handleMeetingDateSelect}
+                initialFocus
+                weekStartsOn={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="meeting-time">Select Time</Label>
+              <Select
+                value={selectedMeetingTime}
+                onValueChange={setSelectedMeetingTime}
+              >
+                <SelectTrigger id="meeting-time">
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateTimeOptions()}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="meeting-notes">Meeting Notes</Label>
+              <textarea
+                id="meeting-notes"
+                className="w-full min-h-[100px] p-2 border rounded-md"
+                placeholder="Add any notes or details about the meeting..."
+                value={meetingNotes}
+                onChange={(e) => setMeetingNotes(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={handleScheduleMeeting}
+                className="bg-[#2E1813] hover:bg-[#2E1813]/90 text-white"
+                disabled={!selectedMeetingDate}
+              >
+                Schedule Meeting
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDisqualifyDialog} onOpenChange={setShowDisqualifyDialog}>
         <DialogContent className="sm:max-w-md">
