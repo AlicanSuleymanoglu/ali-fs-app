@@ -22,6 +22,8 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const SCOPES = process.env.SCOPES;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const OPTIONAL_SCOPES = process.env.OPTIONAL_SCOPES;
+const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
+
 
 const meetingCache = new NodeCache({ stdTTL: 300 }); // cache for 5 minutes
 
@@ -1504,8 +1506,7 @@ app.get('/api/identify-caller', async (req, res) => {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
-  const TOKEN = process.env.HUBSPOT_TOKEN;
-  const headers = { Authorization: `Bearer ${TOKEN}` };
+  const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
 
   const searchContact = async (field) => {
     try {
