@@ -181,26 +181,26 @@ app.post('/api/meetings', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
-  function getRolling21DayWindow() {
+  function getCurrentWeekWindow() {
     const today = new Date();
     const day = today.getDay(); // Sunday - Saturday : 0 - 6
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
-    // Start: Last week's Monday
+    // Start: This week's Monday
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 7);
+    start.setDate(today.getDate() + diffToMonday);
     start.setHours(0, 0, 0, 0);
 
-    // End: Next week's Sunday
+    // End: This week's Sunday
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 13); // +13 to get to next week's Sunday
+    end.setDate(today.getDate() + diffToMonday + 6); // +6 to get to this week's Sunday
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
   }
 
   const { ownerId, forceRefresh } = req.body;
-  const { startTime, endTime } = getRolling21DayWindow();
+  const { startTime, endTime } = getCurrentWeekWindow();
 
   const cacheKey = `meetings:${ownerId}:${startTime}-${endTime}`;
   const cachedData = meetingCache.get(cacheKey);
