@@ -14,17 +14,19 @@ import { useState as useStateDialog } from "react";
 import { Label } from "../components/ui/label.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover.tsx';
 import { Calendar as CalendarComponent } from '../components/ui/calendar.tsx';
+import WinDealDialog from './WinDealDialog.tsx';
 
 interface TaskCardProps {
   task: Task;
   onClick?: () => void;
-  onComplete?: (taskId: string) => void;
+  onComplete: (taskId: string) => void;
   onDisqualify?: (taskId: string, reason: string, otherReason?: string) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqualify }) => {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showWinDealDialog, setShowWinDealDialog] = useState(false);
   const [disqualifyReason, setDisqualifyReason] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
   const [showDisqualifyDialog, setShowDisqualifyDialog] = useState(false);
@@ -50,7 +52,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
         contactId: task.contactId,
         dealId: task.dealId,
         meetingType: "Sales Followup", // Preselect meeting type
-        forceCompany: true // This will lock the company selection
+        forceCompany: true, // This will lock the company selection
+        taskId: task.id,
       }
     });
   };
@@ -110,6 +113,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const markDealAsClosedLost = async (dealId: string, reason: string) => {
     try {
+      // First mark the deal as closed lost
       const res = await fetch(`${BASE_URL}/api/deal/${dealId}/close-lost`, {
         method: 'PATCH',
         credentials: 'include',
@@ -121,6 +125,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
       });
 
       if (!res.ok) throw new Error("Failed to mark deal as closed lost");
+
+      // Then mark the task as completed
+      if (onComplete) {
+        await onComplete(task.id);
+      }
 
       console.log("✅ Deal marked as Closed Lost");
       toast.success("Deal marked as Closed Lost");
@@ -150,7 +159,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
       );
     }
 
-    // ✅ Mark deal as Closed Lost
+    // Mark deal as Closed Lost (this will also mark the task as completed)
     if (task.dealId) {
       await markDealAsClosedLost(
         task.dealId,
@@ -158,29 +167,16 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
       );
     }
 
-    // ✅ Also mark task as completed (backend + UI)
-    if (onComplete) {
-      await onComplete(task.id);
-    }
-
-
     toast.info(`Task for ${task.contactName} marked as disqualified`);
     setShowDisqualifyDialog(false);
   };
 
   const handleOtherReasonChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = (e.target as HTMLInputElement).value;
-    setOtherReason(value);
+    setOtherReason(e.currentTarget.value);
   };
 
   const handleWinDeal = () => {
-    if (task.meetingId) {
-      navigate(`/meeting/${task.meetingId}/positive`);
-    } else {
-      console.warn("⚠️ No meetingId provided in task");
-      toast.error("No associated meeting found");
-    }
-
+    setShowWinDealDialog(true);
     setIsDialogOpen(false);
   };
 
@@ -359,10 +355,18 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
               onClick={handleDisqualify}
               className="w-full"
             >
+              Lose the Deal
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <WinDealDialog
+        isOpen={showWinDealDialog}
+        onOpenChange={setShowWinDealDialog}
+        task={task}
+        onComplete={onComplete}
+      />
     </>
   );
 };

@@ -160,6 +160,7 @@ const AddMeeting: React.FC = () => {
 
       if (!res.ok) throw new Error('Failed to create meeting');
 
+
       // ✅ Mark previous meeting as completed if this is a follow-up
       if (isFollowUp && prefilledData.meetingId) {
         try {
