@@ -294,7 +294,7 @@ app.post('/api/meetings', async (req, res) => {
 
         try {
           const dealsRes = await axios.get(
-            `https://api.hubapi.com/crm/v3/objects/meetings/${id}/associations/deals`,
+            `https://api.hubapi.com/crm/v4/objects/meetings/${id}/associations/deals`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           dealId = dealsRes.data.results?.[0]?.toObjectId || null;
