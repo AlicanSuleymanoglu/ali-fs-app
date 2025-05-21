@@ -167,6 +167,15 @@ const MeetingActions: React.FC = () => {
             </p>
           </div>
 
+          {/* Deal ID Section */}
+          <div className="py-2">
+            <p className="text-sm text-gray-500">Deal ID</p>
+            {meetingDetails.dealId ? (
+              <p className="font-medium font-mono">#{meetingDetails.dealId}</p>
+            ) : (
+              <p className="font-medium text-gray-400">No deal associated</p>
+            )}
+          </div>
 
           {/* 🔥 Internal Notes Section */}
           <div className="py-2">
