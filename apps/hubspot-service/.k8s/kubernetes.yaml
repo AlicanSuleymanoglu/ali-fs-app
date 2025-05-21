@@ -144,6 +144,8 @@ items:
                   value: "https://sales.allo.restaurant/auth/callback"
                 - name: "FRONTEND_URL"
                   value: "https://sales.allo.restaurant/dashboard"
+                - name: "HUBSPOT_TOKEN"
+                  value: "gcp:secretmanager:$INT_SERVICE_NAME-HUBSPOT_TOKEN"
               image: "$INT_SERVICE_IMAGE"
               imagePullPolicy: "IfNotPresent"
               name: "$INT_SERVICE_NAME"
