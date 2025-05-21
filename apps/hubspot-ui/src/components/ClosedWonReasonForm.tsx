@@ -15,6 +15,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
   const [reason, setReason] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
   const [posCompetitor, setPosCompetitor] = useState<string>("");
+  const [paymentCompetitor, setPaymentCompetitor] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
@@ -46,6 +47,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
         body: JSON.stringify({
           closed_won_reason: reason === "Other" ? otherReason : reason,
           pos_competitor: posCompetitor,
+          payment_competitor: paymentCompetitor,
         }),
       });
 
@@ -139,6 +141,25 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
                 <SelectItem value="WinOrder">WinOrder</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
                 <SelectItem value="None">None</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Payment Competitor */}
+          <div className="space-y-2">
+            <Label htmlFor="payment-competitor">Payment Competitor</Label>
+            <Select
+              onValueChange={setPaymentCompetitor}
+              value={paymentCompetitor}
+              disabled={loading}
+            >
+              <SelectTrigger id="payment-competitor">
+                <SelectValue placeholder="Select a payment competitor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SumUp">Adyen</SelectItem>
+                <SelectItem value="Flatpay">Barclaycard</SelectItem>
+                <SelectItem value="Other">Elavon</SelectItem>
+                <SelectItem value="None">First Data</SelectItem>
               </SelectContent>
             </Select>
           </div>

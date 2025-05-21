@@ -754,7 +754,7 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
   if (!token) return res.status(401).send('Not authenticated');
 
   const { dealId } = req.params;
-  const { closed_won_reason, pos_competitor } = req.body;
+  const { closed_won_reason, pos_competitor, payment_competitor } = req.body;
 
   // Required fields
   if (!closed_won_reason) {
@@ -768,6 +768,7 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
     };
     // Optional competitor fields if present
     if (pos_competitor) properties.pos_competitor = pos_competitor;
+    if (payment_competitor) properties.payment_competitor = payment_competitor;
 
     // HubSpot PATCH update
     const updateRes = await axios.patch(
@@ -1486,5 +1487,89 @@ app.post('/api/companies/:companyId/associate-contact', async (req, res) => {
     // Handle error from HubSpot API or any other error
     console.error("❌ Failed to create or associate contact:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to create or associate contact', details: err.response?.data || err.message });
+  }
+});
+
+
+
+
+
+
+
+
+// -------------------------------------------------------------------------------------------------
+// SUPPORT AGENT CALL FOR JACK 
+// 🔍 Identify caller by phone number (for support agents)
+app.get('/api/identify-caller', async (req, res) => {
+  const caller_number = req.query.caller_number || req.body?.caller_number;
+
+  if (!caller_number) {
+    return res.status(400).json({ error: 'Missing caller_number parameter' });
+  }
+
+  const TOKEN = process.env.HUBSPOT_TOKEN;
+  const headers = { Authorization: `Bearer ${TOKEN}` };
+
+  const searchContact = async (field) => {
+    try {
+      const response = await axios.post(
+        'https://api.hubapi.com/crm/v3/objects/contacts/search',
+        {
+          filterGroups: [{
+            filters: [{ propertyName: field, operator: 'EQ', value: caller_number }]
+          }],
+          properties: ['firstname', 'lastname', 'role']
+        },
+        { headers }
+      );
+      return response.data.results[0];
+    } catch (err) {
+      console.error("🔍 Contact search error:", err.response?.data || err.message);
+      return null;
+    }
+  };
+
+  try {
+    let contact = await searchContact('phone');
+    if (!contact) contact = await searchContact('mobilephone');
+
+    if (!contact) {
+      return res.status(200).json({
+        caller_number,
+        customer_name: null,
+        user_role: null,
+        restaurant_name: null
+      });
+    }
+
+    const contactId = contact.id;
+    const name = `${contact.properties.firstname} ${contact.properties.lastname}`;
+    const role = contact.properties.role || null;
+
+    const assoc = await axios.get(
+      `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/companies`,
+      { headers }
+    );
+
+    const companyId = assoc.data.results[0]?.id;
+    let restaurant = null;
+
+    if (companyId) {
+      const company = await axios.get(
+        `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name`,
+        { headers }
+      );
+      restaurant = company.data.properties.name;
+    }
+
+    res.status(200).json({
+      caller_number,
+      customer_name: name,
+      user_role: role,
+      restaurant_name: restaurant
+    });
+  } catch (err) {
+    console.error("❌ identify-caller error:", err.response?.data || err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
