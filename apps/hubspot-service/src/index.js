@@ -1500,7 +1500,6 @@ app.post('/api/companies/:companyId/associate-contact', async (req, res) => {
 // SUPPORT AGENT CALL FOR JACK 
 // 🔍 Identify caller by phone number (for support agents)
 app.get('/api/identify-caller', async (req, res) => {
-  const caller_number = req.query.caller_number || req.body?.caller_number;
 
   if (!caller_number) {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
@@ -1509,21 +1508,28 @@ app.get('/api/identify-caller', async (req, res) => {
   const normalizePhoneNumber = (number) => {
     if (!number) return '';
 
-    // Step 1: Remove all whitespace
     number = number.trim().replace(/\s+/g, '');
 
-    // Step 2: Fix numbers that start with '490' (e.g. 490151...) → '49' + rest
-    if (number.startsWith('490') && number.length > 3) {
-      number = '49' + number.slice(3); // remove that '0' after country code
+    if (number.startsWith('490')) {
+      number = '49' + number.slice(3);
     }
 
-    // Step 3: Add '+' if it's still missing
     if (!number.startsWith('+') && number.startsWith('49')) {
       number = '+' + number;
     }
 
     return number;
   };
+
+  const caller_number = req.query.caller_number;
+  const normalized = normalizePhoneNumber(caller_number);
+
+  // 💥 Manually insert `%2B` for outbound URL generation
+  const encodedNumber = `%2B${normalized.replace(/^\+/, '')}`;
+
+  console.log(`Encoded for outbound use: ${encodedNumber}`);
+  // Output: %2B4915128792477
+
 
 
   const normalizedNumber = normalizePhoneNumber(caller_number);
