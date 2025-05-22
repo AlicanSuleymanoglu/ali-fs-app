@@ -1506,14 +1506,17 @@ app.get('/api/identify-caller', async (req, res) => {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
-  // Normalize phone number by stripping leading zero after country code
+  // Normalize phone number by stripping leading zero after country code and adding "+"
   const normalizePhoneNumber = (number) => {
-    // If number starts with 49 and is followed by a 0, remove that 0
     if (number.startsWith('49') && number.length > 2 && number[2] === '0') {
-      return '49' + number.slice(3);
+      return '+49' + number.slice(3); // e.g. 490151... → +49151...
+    }
+    if (number.startsWith('49')) {
+      return '+' + number; // add + if it's missing
     }
     return number;
   };
+
 
   const normalizedNumber = normalizePhoneNumber(caller_number);
   console.log(`📞 Normalized phone number: ${caller_number} -> ${normalizedNumber}`);
