@@ -1506,17 +1506,34 @@ app.get('/api/identify-caller', async (req, res) => {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
+  // Normalize phone number by stripping leading zero after country code
+  const normalizePhoneNumber = (number) => {
+    // If number starts with 49 and is followed by a 0, remove that 0
+    if (number.startsWith('49') && number.length > 2 && number[2] === '0') {
+      return '49' + number.slice(3);
+    }
+    return number;
+  };
+
+  const normalizedNumber = normalizePhoneNumber(caller_number);
+  console.log(`📞 Normalized phone number: ${caller_number} -> ${normalizedNumber}`);
+
   const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
 
   const searchContact = async (field) => {
     try {
+      // Search with both original and normalized number
       const response = await axios.post(
         'https://api.hubapi.com/crm/v3/objects/contacts/search',
         {
           filterGroups: [{
-            filters: [{ propertyName: field, operator: 'EQ', value: caller_number }]
+            filters: [
+              { propertyName: field, operator: 'EQ', value: caller_number },
+              { propertyName: field, operator: 'EQ', value: normalizedNumber }
+            ],
+            operator: 'OR'
           }],
-          properties: ['firstname', 'lastname', 'role']
+          properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone']
         },
         { headers }
       );
@@ -1534,6 +1551,7 @@ app.get('/api/identify-caller', async (req, res) => {
     if (!contact) {
       return res.status(200).json({
         caller_number,
+        normalized_number: normalizedNumber,
         customer_name: null,
         user_role: null,
         restaurant_name: null
@@ -1562,9 +1580,11 @@ app.get('/api/identify-caller', async (req, res) => {
 
     res.status(200).json({
       caller_number,
+      normalized_number: normalizedNumber,
       customer_name: name,
       user_role: role,
-      restaurant_name: restaurant
+      restaurant_name: restaurant,
+      matched_phone: contact.properties.phone || contact.properties.mobilephone
     });
   } catch (err) {
     console.error("❌ identify-caller error:", err.response?.data || err.message);
