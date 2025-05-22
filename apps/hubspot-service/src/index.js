@@ -1506,14 +1506,22 @@ app.get('/api/identify-caller', async (req, res) => {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
-  // Normalize phone number by stripping leading zero after country code and adding "+"
   const normalizePhoneNumber = (number) => {
-    if (number.startsWith('49') && number.length > 2 && number[2] === '0') {
-      return '+49' + number.slice(3); // e.g. 490151... → +49151...
+    if (!number) return '';
+
+    // Step 1: Remove all whitespace
+    number = number.trim().replace(/\s+/g, '');
+
+    // Step 2: Fix numbers that start with '490' (e.g. 490151...) → '49' + rest
+    if (number.startsWith('490') && number.length > 3) {
+      number = '49' + number.slice(3); // remove that '0' after country code
     }
-    if (number.startsWith('49')) {
-      return '+' + number; // add + if it's missing
+
+    // Step 3: Add '+' if it's still missing
+    if (!number.startsWith('+') && number.startsWith('49')) {
+      number = '+' + number;
     }
+
     return number;
   };
 
