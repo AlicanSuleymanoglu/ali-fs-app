@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -6,12 +7,12 @@ import {
   X,
   Clock,
   AlertTriangle,
-  MapPin,
+  // MapPin, // MapPin is not used in the provided code snippet for MeetingActions
   ExternalLink
 } from 'lucide-react';
-import { Button } from '../components/ui/button.tsx';
+import { Button, buttonVariants } from '../components/ui/button.tsx'; // Added buttonVariants
 import { useIsMobile } from "../hooks/use-mobile.tsx";
-import { useMeetingContext } from '../context/MeetingContext.tsx'; // ✅ import the context
+import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useUser } from '../hooks/useUser.ts';
 import { refreshMeetings } from '../utils/refreshMeetings.ts';
 import {
@@ -24,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog.tsx';
-import { data } from '@remix-run/router';
+import { cn } from '../lib/utils.ts'; // Added cn
 
 const MeetingActions: React.FC = () => {
 
@@ -34,7 +35,7 @@ const MeetingActions: React.FC = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
-  const { meetings, setMeetings } = useMeetingContext(); // ✅ use context
+  const { meetings, setMeetings } = useMeetingContext();
   const [meetingDetails, setMeetingDetails] = useState<any | null>(null);
   const user = useUser();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
@@ -153,7 +154,8 @@ const MeetingActions: React.FC = () => {
             <p className="text-sm text-gray-500">Company</p>
             <p className="font-medium">{meetingDetails.companyName}</p>
           </div>
-          <div className="py-2 flex flex-col items-center"> {/* Centered Text and Button */}
+          {/* Removed MapPin from here as it was not imported if address is not meant to be a map link */}
+          <div className="py-2 flex flex-col items-center">
             <p className="text-sm text-gray-500 text-center">Address</p>
             <button
               className="font-medium flex items-center justify-center text-allo-primary hover:underline mt-1"
@@ -232,7 +234,7 @@ const MeetingActions: React.FC = () => {
         <AlertDialogContent className="max-w-[350px]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center">
-              <AlertTriangle className="text-red-500 mr-2 h-5 w-5" />
+              <AlertTriangle className="text-destructive mr-2 h-5 w-5" />
               Cancel Meeting
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -241,36 +243,43 @@ const MeetingActions: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>No, keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancelConfirm} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleCancelConfirm} className="bg-destructive hover:bg-destructive/90">
               Yes, cancel
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Validation Dialog */}
+      {/* Validation Dialog - Prettier version */}
       <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
-        <AlertDialogContent className="max-w-[400px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center text-red-500">
-              <AlertTriangle className="mr-2 h-5 w-5" />
+        <AlertDialogContent className="max-w-md bg-card text-card-foreground p-6 rounded-lg shadow-xl">
+          <AlertDialogHeader className="mb-4">
+            <AlertDialogTitle className="flex items-center text-lg font-semibold text-destructive">
+              <AlertTriangle className="mr-3 h-6 w-6 flex-shrink-0" />
               Missing Information
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Missing required information: {missingFields.join(', ')}. Please talk to your SDR to fix this in HubSpot.
+            <AlertDialogDescription className="mt-2 text-sm text-muted-foreground">
+              The following required information is missing: <span className="font-semibold text-destructive">{missingFields.join(', ')}</span>.
+              <br />
+              Please talk to your SDR or update this information in HubSpot to proceed.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0">
+          <AlertDialogFooter className="flex flex-col space-y-3 pt-4">
             <a
-              href={`https://app.hubspot.com/contacts/${meetingDetails?.id}/record/0-1`}
+              href={`https://app.hubspot.com/contacts/${meetingDetails?.id}/record/0-1`} // Kept original link structure
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className={cn(
+                buttonVariants({ size: 'default' }), // Base button styles
+                "w-full bg-blue-600 text-primary-foreground hover:bg-blue-700 focus-visible:ring-blue-500" // HubSpot blue
+              )}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               Open in HubSpot
             </a>
-            <AlertDialogCancel className="w-full">Close</AlertDialogCancel>
+            <AlertDialogCancel className={cn(buttonVariants({ variant: 'outline', size: 'default' }), "w-full")}>
+              Close
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -279,3 +288,4 @@ const MeetingActions: React.FC = () => {
 };
 
 export default MeetingActions;
+
