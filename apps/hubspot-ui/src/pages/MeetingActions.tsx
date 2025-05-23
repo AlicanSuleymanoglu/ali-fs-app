@@ -6,7 +6,8 @@ import {
   X,
   Clock,
   AlertTriangle,
-  MapPin
+  MapPin,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '../components/ui/button.tsx';
 import { useIsMobile } from "../hooks/use-mobile.tsx";
@@ -31,6 +32,8 @@ const MeetingActions: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const { meetings, setMeetings } = useMeetingContext(); // ✅ use context
   const [meetingDetails, setMeetingDetails] = useState<any | null>(null);
   const user = useUser();
@@ -93,14 +96,24 @@ const MeetingActions: React.FC = () => {
   };
 
   const handleComplete = () => {
+    const missing = [];
+    if (!meetingDetails.companyId) missing.push('Company');
+    if (!meetingDetails.dealId) missing.push('Deal');
+    if (!meetingDetails.contactId) missing.push('Contact');
+
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setValidationDialogOpen(true);
+      return;
+    }
+
+    // If all required fields are present, proceed with navigation
     navigate(`/meeting/${id}/outcome`, {
       state: {
-        dealId: meetingDetails.dealId, // <-- Pass the dealId!
+        dealId: meetingDetails.dealId,
       }
     });
   };
-  console.log("Meeting details:", meetingDetails);
-  console.log("Deal ID from context:", meetingDetails?.dealId);
 
   const handleReschedule = () => {
     navigate('/add-meeting', {
@@ -214,6 +227,7 @@ const MeetingActions: React.FC = () => {
         </div>
       </div>
 
+      {/* Cancel Dialog */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent className="max-w-[350px]">
           <AlertDialogHeader>
@@ -230,6 +244,33 @@ const MeetingActions: React.FC = () => {
             <AlertDialogAction onClick={handleCancelConfirm} className="bg-red-600 hover:bg-red-700">
               Yes, cancel
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Validation Dialog */}
+      <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
+        <AlertDialogContent className="max-w-[400px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center text-red-500">
+              <AlertTriangle className="mr-2 h-5 w-5" />
+              Missing Information
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Missing required information: {missingFields.join(', ')}. Please talk to your SDR to fix this in HubSpot.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0">
+            <a
+              href={`https://app.hubspot.com/contacts/${meetingDetails?.id}/record/0-1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open in HubSpot
+            </a>
+            <AlertDialogCancel className="w-full">Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
