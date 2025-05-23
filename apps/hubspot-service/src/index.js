@@ -1562,79 +1562,107 @@ app.get('/api/identify-caller', async (req, res) => {
   };
 
 
-  const normalizedNumber = normalizePhoneNumber(caller_number);
-  console.log(`📞 Normalized phone number: ${caller_number} -> ${normalizedNumber}`);
+  // -------------------------------------------------------------------------------------------------
+  // SUPPORT AGENT CALL FOR JACK 
+  // 🔍 Identify caller by phone number (for support agents)
+  app.get('/api/identify-caller', async (req, res) => {
+    let caller_number = req.query.caller_number || req.body?.caller_number;
 
-  const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
-
-  const searchContact = async (field) => {
-    try {
-      // Search with both original and normalized number
-      const response = await axios.post(
-        'https://api.hubapi.com/crm/v3/objects/contacts/search',
-        {
-          filterGroups: [{
-            filters: [
-              { propertyName: field, operator: 'EQ', value: caller_number },
-              { propertyName: field, operator: 'EQ', value: normalizedNumber }
-            ],
-            operator: 'OR'
-          }],
-          properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone']
-        },
-        { headers }
-      );
-      return response.data.results[0];
-    } catch (err) {
-      console.error("🔍 Contact search error:", err.response?.data || err.message);
-      return null;
+    if (!caller_number) {
+      return res.status(400).json({ error: 'Missing caller_number parameter' });
     }
-  };
 
-  try {
-    let contact = await searchContact('phone');
-    if (!contact) contact = await searchContact('mobilephone');
+    // 🧼 Clean input: remove leading/trailing spaces and inner whitespace
+    caller_number = caller_number.trim().replace(/\s+/g, '');
 
-    if (!contact) {
-      return res.status(200).json({
+    // ✅ Normalize number to international format (e.g. "490151..." -> "+49151...")
+    const normalizePhoneNumber = (number) => {
+      if (!number) return '';
+      if (number.startsWith('490') && number.length > 3) {
+        number = '49' + number.slice(3); // remove '0' after country code
+      }
+      if (!number.startsWith('+') && number.startsWith('49')) {
+        number = '+' + number;
+      }
+      return number;
+    };
+
+    const normalizedNumber = normalizePhoneNumber(caller_number);
+    console.log(`📞 Incoming: '${req.query.caller_number}' → Trimmed: '${caller_number}' → Normalized: '${normalizedNumber}'`);
+
+    const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
+
+    // 🔍 Search for contact by phone or mobilephone
+    const searchContact = async (field) => {
+      try {
+        const response = await axios.post(
+          'https://api.hubapi.com/crm/v3/objects/contacts/search',
+          {
+            filterGroups: [{
+              filters: [
+                { propertyName: field, operator: 'EQ', value: caller_number },
+                { propertyName: field, operator: 'EQ', value: normalizedNumber }
+              ],
+              operator: 'OR'
+            }],
+            properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone']
+          },
+          { headers }
+        );
+        return response.data.results[0];
+      } catch (err) {
+        console.error("🔍 Contact search error:", err.response?.data || err.message);
+        return null;
+      }
+    };
+
+    try {
+      let contact = await searchContact('phone');
+      if (!contact) contact = await searchContact('mobilephone');
+
+      if (!contact) {
+        return res.status(200).json({
+          caller_number,
+          normalized_number: normalizedNumber,
+          customer_name: null,
+          user_role: null,
+          restaurant_name: null
+        });
+      }
+
+      const contactId = contact.id;
+      const name = `${contact.properties.firstname} ${contact.properties.lastname}`;
+      const role = contact.properties.role || null;
+
+      let restaurant = null;
+      try {
+        const assoc = await axios.get(
+          `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/companies`,
+          { headers }
+        );
+
+        const companyId = assoc.data.results[0]?.id;
+        if (companyId) {
+          const company = await axios.get(
+            `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name`,
+            { headers }
+          );
+          restaurant = company.data.properties.name;
+        }
+      } catch (err) {
+        console.warn("⚠️ Could not fetch company for contact:", err.response?.data || err.message);
+      }
+
+      res.status(200).json({
         caller_number,
         normalized_number: normalizedNumber,
-        customer_name: null,
-        user_role: null,
-        restaurant_name: null
+        customer_name: name,
+        user_role: role,
+        restaurant_name: restaurant,
+        matched_phone: contact.properties.phone || contact.properties.mobilephone
       });
+    } catch (err) {
+      console.error("❌ identify-caller error:", err.response?.data || err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
-
-    const contactId = contact.id;
-    const name = `${contact.properties.firstname} ${contact.properties.lastname}`;
-    const role = contact.properties.role || null;
-
-    const assoc = await axios.get(
-      `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}/associations/companies`,
-      { headers }
-    );
-
-    const companyId = assoc.data.results[0]?.id;
-    let restaurant = null;
-
-    if (companyId) {
-      const company = await axios.get(
-        `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name`,
-        { headers }
-      );
-      restaurant = company.data.properties.name;
-    }
-
-    res.status(200).json({
-      caller_number,
-      normalized_number: normalizedNumber,
-      customer_name: name,
-      user_role: role,
-      restaurant_name: restaurant,
-      matched_phone: contact.properties.phone || contact.properties.mobilephone
-    });
-  } catch (err) {
-    console.error("❌ identify-caller error:", err.response?.data || err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  });
