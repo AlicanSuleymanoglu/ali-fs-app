@@ -258,22 +258,26 @@ const MeetingActions: React.FC = () => {
             <p className="text-sm text-gray-500">Phone Number</p>
             <p className="font-medium">{meetingDetails.contactPhone}</p>
           </div>
-          <div className="py-2">
-            <p className="text-sm text-gray-500">Time</p>
-            <p className="font-medium">
-              {new Date(meetingDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              {' - '}
-              {new Date(meetingDetails.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
+
 
           {/* Deal ID Section */}
-          <div className="py-2">
-            <p className="text-sm text-gray-500">Deal ID</p>
+          <div className={`py-2 ${isMobile ? 'text-center' : ''}`}>
+            <p className={`text-sm text-gray-500 ${isMobile ? 'text-center' : ''}`}>Deal ID</p>
+            <p className={`text-xs text-gray-400 italic ${isMobile ? 'text-center' : ''} mb-1 whitespace-nowrap`}>
+              Click to add contract notes
+            </p>
             {meetingDetails.dealId ? (
-              <p className="font-medium font-mono">#{meetingDetails.dealId}</p>
+              <a
+                href={`https://app.hubspot.com/contacts/48291892/deal/${meetingDetails.dealId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`font-medium font-mono text-allo-primary hover:text-allo-primary/80 flex items-center gap-1 group ${isMobile ? 'justify-center' : ''}`}
+              >
+                <span>#{meetingDetails.dealId}</span>
+                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
             ) : (
-              <p className="font-medium text-gray-400">No deal associated</p>
+              <p className={`font-medium text-gray-400 ${isMobile ? 'text-center' : ''}`}>No deal associated</p>
             )}
           </div>
 
