@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +7,8 @@ import {
   Clock,
   AlertTriangle,
   // MapPin, // MapPin is not used in the provided code snippet for MeetingActions
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { Button, buttonVariants } from '../components/ui/button.tsx'; // Added buttonVariants
 import { useIsMobile } from "../hooks/use-mobile.tsx";
@@ -26,6 +26,16 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog.tsx';
 import { cn } from '../lib/utils.ts'; // Added cn
+import { toast } from '../components/ui/use-toast.ts';
+
+// Add type for meeting
+interface Meeting {
+  id: string;
+  companyId?: string;
+  dealId?: string;
+  contactId?: string;
+  // ... other meeting properties
+}
 
 const MeetingActions: React.FC = () => {
 
@@ -40,6 +50,7 @@ const MeetingActions: React.FC = () => {
   const user = useUser();
   const ownerId = user?.user_id;
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
@@ -62,7 +73,7 @@ const MeetingActions: React.FC = () => {
 
   const handleAddressClick = () => {
     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingDetails.address)}`;
-    window.open(googleMapsUrl, '_blank');
+    (window as any).open(googleMapsUrl, '_blank');
   };
 
   const handleCancelConfirm = async () => {
@@ -135,6 +146,79 @@ const MeetingActions: React.FC = () => {
         internalNotes: meetingDetails.internalNotes,
       }
     });
+  };
+
+  const handleRefresh = async () => {
+    if (!user?.user_id) {
+      toast({
+        title: "Error",
+        description: "User not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      // Get the refreshed meetings data
+      const refreshedMeetings = await refreshMeetings(user.user_id, setMeetings);
+
+      // Find the updated meeting from the refreshed data
+      const updatedMeeting = refreshedMeetings?.find((m: Meeting) => m.id === id);
+
+      if (updatedMeeting) {
+        // Update the meeting details immediately
+        setMeetingDetails(updatedMeeting);
+
+        // Check if all required fields are now present
+        const stillMissing = [];
+        if (!updatedMeeting.companyId) stillMissing.push('Company');
+        if (!updatedMeeting.dealId) stillMissing.push('Deal');
+        if (!updatedMeeting.contactId) stillMissing.push('Contact');
+
+        if (stillMissing.length === 0) {
+          // All required fields are now present
+          toast({
+            title: "Success",
+            description: "All required information found! Proceeding to outcome page.",
+            variant: "default"
+          });
+          // Close the dialog first
+          setValidationDialogOpen(false);
+          // Small delay to ensure dialog is closed before navigation
+          setTimeout(() => {
+            navigate(`/meeting/${id}/outcome`, {
+              state: {
+                dealId: updatedMeeting.dealId,
+              }
+            });
+          }, 100);
+        } else {
+          // Some fields are still missing
+          setMissingFields(stillMissing);
+          toast({
+            title: "Information Still Missing",
+            description: `Still missing: ${stillMissing.join(', ')}. Please update in HubSpot.`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Meeting not found after refresh. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh meetings:', err);
+      toast({
+        title: "Error",
+        description: "Failed to refresh meetings. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -266,18 +350,41 @@ const MeetingActions: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col space-y-3 pt-4">
-            <a
-              href={`https://app.hubspot.com/contacts/48291892/record/0-2/${meetingDetails.companyId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                buttonVariants({ size: 'default' }), // Base button styles
-                "w-full bg-blue-600 text-primary-foreground hover:bg-blue-700 focus-visible:ring-blue-500" // HubSpot blue
-              )}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open in HubSpot
-            </a>
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <Button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={cn(
+                  buttonVariants({ size: 'default' }),
+                  "w-full bg-green-600 text-primary-foreground hover:bg-green-700 focus-visible:ring-green-500",
+                  isRefreshing && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isRefreshing ? (
+                  <>
+                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Data
+                  </>
+                )}
+              </Button>
+              <a
+                href={`https://app.hubspot.com/contacts/48291892/record/0-2/${meetingDetails.companyId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ size: 'default' }),
+                  "w-full bg-blue-600 text-primary-foreground hover:bg-blue-700 focus-visible:ring-blue-500"
+                )}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open in HubSpot
+              </a>
+            </div>
             <AlertDialogCancel className={cn(buttonVariants({ variant: 'outline', size: 'default' }), "w-full")}>
               Close
             </AlertDialogCancel>
