@@ -726,6 +726,43 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
   }
 });
 
+// Append new text to an existing HubSpot note
+app.post('/api/notes/:noteId/append', async (req, res) => {
+  const token = req.session.accessToken;
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { noteId } = req.params;
+  const { additionalText } = req.body;
+
+  if (!additionalText || additionalText.trim().length === 0) {
+    return res.status(400).json({ error: 'Note text is empty.' });
+  }
+
+  try {
+    // Get current note content
+    const existingNote = await axios.get(`https://api.hubapi.com/crm/v3/objects/notes/${noteId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const currentBody = existingNote.data.properties.hs_note_body || "";
+    const updatedBody = `${currentBody}\n\n---\n${additionalText.trim()}`;
+
+    // Patch the note with the new content
+    await axios.patch(`https://api.hubapi.com/crm/v3/objects/notes/${noteId}`, {
+      properties: {
+        hs_note_body: updatedBody
+      }
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to append to note:", err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to update note', details: err.response?.data || err.message });
+  }
+});
+
 
 // Closed Lost Reason Form
 app.patch('/api/deal/:dealId/close-lost', async (req, res) => {
@@ -804,7 +841,6 @@ app.post('/api/meeting/:id/mark-completed', async (req, res) => {
         hs_meeting_outcome: "COMPLETED"
       }
     });
-    setMeetings((prev) => prev.map(meeting => meeting.id === meetingId ? { ...meeting, status: 'completed' } : meeting));
 
     res.json({ success: true });
   } catch (err) {
@@ -1500,6 +1536,7 @@ app.post('/api/companies/:companyId/associate-contact', async (req, res) => {
 // SUPPORT AGENT CALL FOR JACK 
 // 🔍 Identify caller by phone number (for support agents)
 app.get('/api/identify-caller', async (req, res) => {
+  const caller_number = req.query.caller_number || req.body?.caller_number;
 
   if (!caller_number) {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
@@ -1508,28 +1545,21 @@ app.get('/api/identify-caller', async (req, res) => {
   const normalizePhoneNumber = (number) => {
     if (!number) return '';
 
+    // Step 1: Remove all whitespace
     number = number.trim().replace(/\s+/g, '');
 
-    if (number.startsWith('490')) {
-      number = '49' + number.slice(3);
+    // Step 2: Fix numbers that start with '490' (e.g. 490151...) → '49' + rest
+    if (number.startsWith('490') && number.length > 3) {
+      number = '49' + number.slice(3); // remove that '0' after country code
     }
 
+    // Step 3: Add '+' if it's still missing
     if (!number.startsWith('+') && number.startsWith('49')) {
       number = '+' + number;
     }
 
     return number;
   };
-
-  const caller_number = req.query.caller_number;
-  const normalized = normalizePhoneNumber(caller_number);
-
-  // 💥 Manually insert `%2B` for outbound URL generation
-  const encodedNumber = `%2B${normalized.replace(/^\+/, '')}`;
-
-  console.log(`Encoded for outbound use: ${encodedNumber}`);
-  // Output: %2B4915128792477
-
 
 
   const normalizedNumber = normalizePhoneNumber(caller_number);

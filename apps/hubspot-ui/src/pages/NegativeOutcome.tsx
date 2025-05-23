@@ -100,7 +100,7 @@ const NegativeOutcome: React.FC = () => {
       }
 
       toast.success("Meeting marked as negative outcome and completed!");
-      navigate(`/meeting/${id}/outcome`);
+      navigate(`/dashboard`);
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);

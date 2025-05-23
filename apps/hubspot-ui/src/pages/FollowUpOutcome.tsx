@@ -29,6 +29,7 @@ const FollowUpOutcome: React.FC = () => {
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
+
   const { meetings, setMeetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
@@ -171,7 +172,7 @@ const FollowUpOutcome: React.FC = () => {
   };
 
   const scheduleTask = async (taskDate: Date) => {
-    if (!meetingDetails) return;
+    if (!meetingDetails || !user?.user_id) return;
 
     const dateWithTime = new Date(taskDate);
     dateWithTime.setHours(9, 0, 0, 0); // always at 09:00
@@ -184,13 +185,12 @@ const FollowUpOutcome: React.FC = () => {
       contactId: meetingDetails.contactId,
       dealId: meetingDetails.dealId,
       companyName: meetingDetails.companyName,
-      ownerId: user?.user_id,
+      ownerId: user.user_id,
       meetingId: meetingDetails.id,
     };
-    console.log("🧪 Task Payload:", payload);
-    console.log("✅ contactId from meetingDetails:", meetingDetails.contactId);
 
     try {
+      // Step 1: Create the task
       const res = await fetch(`${BASE_URL}/api/hubspot/tasks/create`, {
         method: "POST",
         credentials: "include",
@@ -200,16 +200,18 @@ const FollowUpOutcome: React.FC = () => {
 
       if (!res.ok) throw new Error("Failed to create task");
 
-      // Update deal stage to 'in-negotiation'
+      // Step 2: Update deal stage to 'in-negotiation'
       await fetch(`${BASE_URL}/api/deal/${meetingDetails.dealId}/in-negotiation`, {
         method: 'PATCH',
         credentials: 'include',
       });
+      // ✅ Step 3: Mark the meeting as completed
+      const completedRes = await fetch(`${BASE_URL}/api/meeting/${meetingDetails.id}/mark-completed`, {
+        method: "POST",
+        credentials: "include"
+      });
 
-      // Refresh meetings once at the end of the flow
-      if (user?.user_id) {
-        await refreshMeetings(user.user_id, setMeetings);
-      }
+      if (!completedRes.ok) throw new Error("Failed to mark meeting as completed");
 
       // Show success state
       setShowTaskSuccess(true);
@@ -219,7 +221,7 @@ const FollowUpOutcome: React.FC = () => {
         duration: 4000,
       });
 
-      // Hide success state after 3 seconds
+      // Hide success state and navigate after 3 seconds
       setTimeout(() => {
         setShowTaskSuccess(false);
         setCreatedTaskDate(null);
@@ -231,14 +233,6 @@ const FollowUpOutcome: React.FC = () => {
     } catch (err) {
       console.error("❌ Failed to schedule task:", err);
       toast.error("Failed to schedule follow-up task");
-      // Still try to refresh meetings even if task creation failed
-      if (user?.user_id) {
-        try {
-          await refreshMeetings(user.user_id, setMeetings);
-        } catch (refreshErr) {
-          console.error("Error refreshing meetings:", refreshErr);
-        }
-      }
     }
   };
 
@@ -334,13 +328,7 @@ const FollowUpOutcome: React.FC = () => {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={(selectedDate) => {
-                          if (selectedDate) {
-                            setDate(selectedDate);
-                            setShowDateSelector(false);
-                            scheduleTask(selectedDate);
-                          }
-                        }}
+                        onSelect={handleCalendarSelect}
                         initialFocus
                       />
                     </PopoverContent>
