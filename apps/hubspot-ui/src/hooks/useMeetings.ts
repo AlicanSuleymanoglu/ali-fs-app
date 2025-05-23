@@ -16,6 +16,7 @@ export interface Meeting {
     contactId?: string | number;
     contactPhone?: string;
     internalNotes?: string;
+    company_address?: string;
     // add other fields as needed
 }
 
