@@ -38,6 +38,7 @@ const MeetingActions: React.FC = () => {
   const { meetings, setMeetings } = useMeetingContext();
   const [meetingDetails, setMeetingDetails] = useState<any | null>(null);
   const user = useUser();
+  const ownerId = user?.user_id;
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   useEffect(() => {
@@ -266,7 +267,7 @@ const MeetingActions: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col space-y-3 pt-4">
             <a
-              href={`https://app.hubspot.com/contacts/${meetingDetails?.id}/record/0-1`} // Kept original link structure
+              href={`https://app.hubspot.com/contacts/48291892/record/0-2/${meetingDetails.companyId}`}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
