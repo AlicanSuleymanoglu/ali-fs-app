@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   BrowserRouter as Router,
@@ -17,6 +16,7 @@ import MeetingOutcome from './pages/MeetingOutcome.tsx';
 import PositiveOutcome from './pages/PositiveOutcome.tsx';
 import NegativeOutcome from './pages/NegativeOutcome.tsx';
 import FollowUpOutcome from './pages/FollowUpOutcome.tsx';
+import FollowUpOptions from './pages/FollowUpOptions.tsx';
 import ContractSuccess from './pages/ContractSuccess.tsx';
 
 import { MeetingProvider } from './context/MeetingContext.tsx';
@@ -111,6 +111,10 @@ function App() {
           <Route
             path="/meeting/:id/follow-up"
             element={isAuthenticated ? <FollowUpOutcome /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/meeting/:id/follow-up-options"
+            element={isAuthenticated ? <FollowUpOptions /> : <Navigate to="/" />}
           />
           {/* Outcome-specific routes */}
           <Route
