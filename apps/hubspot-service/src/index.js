@@ -682,7 +682,7 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
       {
         headers: {
           ...fileFormData.getHeaders(),
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${HUBSPOT_TOKEN}`,
         },
         maxContentLength: Infinity,
         maxBodyLength: Infinity
