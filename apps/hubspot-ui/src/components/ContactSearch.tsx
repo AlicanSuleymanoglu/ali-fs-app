@@ -193,10 +193,15 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
         }
       }
 
-      // ✅ Set the selected contact and close dialog
-      const fullName = `${contact.firstName} ${contact.lastName}`;
-      await selectContact({ ...contact, fullName });
-      setSearchTerm(fullName);
+      // Create a contact object with the full name
+      const newContactObj = {
+        ...contact,
+        fullName: `${firstName} ${lastName}`.trim()
+      };
+
+      // Update the search term and select the contact
+      setSearchTerm(newContactObj.fullName);
+      await selectContact(newContactObj);
       setShowAddDialog(false);
       toast.success("Contact created and associated!");
     } catch (error) {
