@@ -1541,43 +1541,62 @@ app.get('/api/identify-caller', async (req, res) => {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
-  // 🧼 Clean input: remove leading/trailing spaces and inner whitespace
+  // 🧼 Step 1: Clean input
   caller_number = caller_number.trim().replace(/\s+/g, '');
 
-  // ✅ Normalize number to international format (e.g. "490151..." -> "+49151...")
-  const normalizePhoneNumber = (number) => {
-    if (!number) return '';
-    if (number.startsWith('490') && number.length > 3) {
-      number = '49' + number.slice(3); // remove '0' after country code
+  // ✅ Step 2: Generate number variants
+  const generateVariants = (number) => {
+    let variants = new Set();
+
+    // Raw
+    variants.add(number);
+
+    // Remove leading 0 after 49 → "490151..." → "49151..."
+    if (number.startsWith('490')) {
+      variants.add('49' + number.slice(3));
     }
-    if (!number.startsWith('+') && number.startsWith('49')) {
-      number = '+' + number;
+
+    // Ensure prefixed with +
+    if (number.startsWith('49')) {
+      variants.add('+' + number);
     }
-    return number;
+    if (number.startsWith('+490')) {
+      variants.add('+49' + number.slice(4));
+    }
+
+    // Include both with and without leading 0 after 49
+    if (number.startsWith('+49') && number.length > 3 && number[3] !== '0') {
+      variants.add('+490' + number.slice(3));
+    }
+
+    return Array.from(variants);
   };
 
-  const normalizedNumber = normalizePhoneNumber(caller_number);
-  console.log(`📞 Incoming: '${req.query.caller_number}' → Trimmed: '${caller_number}' → Normalized: '${normalizedNumber}'`);
+  const numberVariants = generateVariants(caller_number);
+  console.log(`📞 Caller: '${caller_number}' → Variants:`, numberVariants);
 
   const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
 
-  // 🔍 Search for contact by phone or mobilephone
+  // 🔍 Search for contact by either phone or mobilephone
   const searchContact = async (field) => {
     try {
+      const filters = numberVariants.map(num => ({
+        propertyName: field,
+        operator: 'EQ',
+        value: num
+      }));
+
       const response = await axios.post(
         'https://api.hubapi.com/crm/v3/objects/contacts/search',
         {
           filterGroups: [{
-            filters: [
-              { propertyName: field, operator: 'EQ', value: caller_number },
-              { propertyName: field, operator: 'EQ', value: normalizedNumber }
-            ],
-            operator: 'OR'
+            filters
           }],
           properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone']
         },
         { headers }
       );
+
       return response.data.results[0];
     } catch (err) {
       console.error("🔍 Contact search error:", err.response?.data || err.message);
@@ -1592,7 +1611,7 @@ app.get('/api/identify-caller', async (req, res) => {
     if (!contact) {
       return res.status(200).json({
         caller_number,
-        normalized_number: normalizedNumber,
+        variants: numberVariants,
         customer_name: null,
         user_role: null,
         restaurant_name: null
@@ -1624,7 +1643,7 @@ app.get('/api/identify-caller', async (req, res) => {
 
     res.status(200).json({
       caller_number,
-      normalized_number: normalizedNumber,
+      variants: numberVariants,
       customer_name: name,
       user_role: role,
       restaurant_name: restaurant,
