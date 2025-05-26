@@ -139,7 +139,7 @@ items:
                 - name: "SCOPES"
                   value: "crm.objects.companies.read crm.objects.companies.write crm.objects.contacts.read crm.objects.contacts.write crm.objects.deals.read crm.objects.deals.write"
                 - name: "OPTIONAL_SCOPES"
-                  value: "files"
+                  value: "files files.ui_hidden.read"
                 - name: "REDIRECT_URI"
                   value: "https://sales.allo.restaurant/auth/callback"
                 - name: "FRONTEND_URL"
