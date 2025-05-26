@@ -73,11 +73,15 @@ const Dashboard: React.FC = () => {
 
     // Helper function to get full location with street and city information
     const getFullLocation = (meeting: Meeting) => {
-      if (!meeting.address) return '';
+      // First try meeting.address, if empty or undefined, fall back to companyAddress
+      const location = meeting.address || meeting.companyAddress || '';
 
-      // The address should already contain both street and city information 
-      // from the backend, so we just use it directly
-      return meeting.address;
+      if (!location) {
+        console.warn(`⚠️ No address found for meeting with ${meeting.companyName}`);
+        return '';
+      }
+
+      return location;
     };
 
     if (sortedMeetings.length === 1) {
