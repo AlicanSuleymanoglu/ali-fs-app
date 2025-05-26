@@ -62,6 +62,7 @@ export const refreshMeetings = async (
                 type: item.type,
                 status: item.status,
                 address: item.address,
+                companyAddress: item.companyAddress,
                 dealId: item.dealId,
                 companyId: item.companyId,
                 contactId: item.contactId,

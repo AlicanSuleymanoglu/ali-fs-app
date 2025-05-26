@@ -18,6 +18,7 @@ export interface Meeting {
   type?: 'Sales Meeting' | 'Sales Followup';
   status?: 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'RESCHEDULED';
   address?: string;
+  companyAddress?: string;
   dealId?: string | number | null;
   onSelect?: (meeting: Meeting) => void;
   companyId?: string | number | null;

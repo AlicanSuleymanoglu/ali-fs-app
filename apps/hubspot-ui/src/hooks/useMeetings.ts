@@ -7,6 +7,7 @@ export interface Meeting {
     startTime: string;
     endTime: string;
     address?: string;
+    companyAddress?: string;
     companyName?: string;
     status?: string;
     type?: string;
@@ -16,7 +17,6 @@ export interface Meeting {
     contactId?: string | number;
     contactPhone?: string;
     internalNotes?: string;
-    company_address?: string;
     // add other fields as needed
 }
 

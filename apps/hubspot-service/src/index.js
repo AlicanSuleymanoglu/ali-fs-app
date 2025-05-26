@@ -311,7 +311,7 @@ app.post('/api/meetings', async (req, res) => {
           endTime: properties.hs_meeting_end_time,
           date,
           address: properties.hs_meeting_location,
-          company_address: companyAddress,
+          companyAddress: companyAddress,
           status: properties.hs_meeting_outcome || 'scheduled',
           type: properties.hs_activity_type || 'meeting',
           companyName,

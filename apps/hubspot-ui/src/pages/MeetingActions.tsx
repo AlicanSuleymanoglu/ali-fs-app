@@ -54,7 +54,15 @@ const MeetingActions: React.FC = () => {
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
-    setMeetingDetails(foundMeeting || null);
+    if (foundMeeting) {
+      const filledMeeting = {
+        ...foundMeeting,
+        address: foundMeeting.address || foundMeeting.companyAddress || 'Address not available'
+      };
+      setMeetingDetails(filledMeeting);
+    } else {
+      setMeetingDetails(null);
+    }
   }, [id, meetings]);
 
   if (!meetingDetails) {
