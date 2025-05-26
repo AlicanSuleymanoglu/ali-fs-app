@@ -1536,38 +1536,23 @@ app.post('/api/companies/:companyId/associate-contact', async (req, res) => {
 // 🔍 Identify caller by phone number (for support agents)
 app.get('/api/identify-caller', async (req, res) => {
   let caller_number = req.query.caller_number || req.body?.caller_number;
-
   if (!caller_number) {
     return res.status(400).json({ error: 'Missing caller_number parameter' });
   }
 
-  // 🧼 Step 1: Clean input
+  // 🧼 Clean input
   caller_number = caller_number.trim().replace(/\s+/g, '');
 
-  // ✅ Step 2: Generate number variants
+  // 🔁 Generate number variants
   const generateVariants = (number) => {
-    let variants = new Set();
+    const variants = new Set();
 
-    // Raw
     variants.add(number);
 
-    // Remove leading 0 after 49 → "490151..." → "49151..."
-    if (number.startsWith('490')) {
-      variants.add('49' + number.slice(3));
-    }
-
-    // Ensure prefixed with +
-    if (number.startsWith('49')) {
-      variants.add('+' + number);
-    }
-    if (number.startsWith('+490')) {
-      variants.add('+49' + number.slice(4));
-    }
-
-    // Include both with and without leading 0 after 49
-    if (number.startsWith('+49') && number.length > 3 && number[3] !== '0') {
-      variants.add('+490' + number.slice(3));
-    }
+    if (number.startsWith('490')) variants.add('49' + number.slice(3));
+    if (number.startsWith('49') && !number.startsWith('+')) variants.add('+' + number);
+    if (number.startsWith('+490')) variants.add('+49' + number.slice(4));
+    if (number.startsWith('+49') && number[3] !== '0') variants.add('+490' + number.slice(3));
 
     return Array.from(variants);
   };
@@ -1575,24 +1560,19 @@ app.get('/api/identify-caller', async (req, res) => {
   const numberVariants = generateVariants(caller_number);
   console.log(`📞 Caller: '${caller_number}' → Variants:`, numberVariants);
 
-  const headers = { Authorization: `Bearer ${HUBSPOT_TOKEN}` };
+  const headers = { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` };
 
-  // 🔍 Search for contact by either phone or mobilephone
   const searchContact = async (field) => {
     try {
-      const filters = numberVariants.map(num => ({
-        propertyName: field,
-        operator: 'EQ',
-        value: num
+      const filterGroups = numberVariants.map(num => ({
+        filters: [{ propertyName: field, operator: 'EQ', value: num }]
       }));
 
       const response = await axios.post(
         'https://api.hubapi.com/crm/v3/objects/contacts/search',
         {
-          filterGroups: [{
-            filters
-          }],
-          properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone']
+          filterGroups,
+          properties: ['firstname', 'lastname', 'role', 'phone', 'mobilephone'],
         },
         { headers }
       );
