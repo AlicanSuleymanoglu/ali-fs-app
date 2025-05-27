@@ -691,7 +691,7 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
     const fileId = fileRes.data.id;
 
     // Compose note body with "Paper Quote:" followed by a line break and additional notes (if any)
-    let noteBody = "Paper Quote: \n";
+    let noteBody = "Paper Quote: <br>";
     if (additionalNote) noteBody += additionalNote;
 
     // Create a note and associate with the deal
