@@ -643,7 +643,7 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
   const { meetingId } = req.params;
   if (!req.file) return res.status(400).json({ error: 'No contract uploaded' });
 
-  let dealId = req.body.dealId;
+  let dealId = req.body.dealId; // Try from frontend first
   const additionalNote = req.body.note?.trim();
   console.log("dealId:", dealId, "additionalNote:", additionalNote);
 
@@ -663,6 +663,7 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
   }
 
   try {
+    // Prepare form-data for HubSpot file upload
     const fileFormData = new FormData();
     fileFormData.append('file', req.file.buffer, {
       filename: req.file.originalname || 'contract.pdf',
@@ -674,6 +675,7 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
     }));
     fileFormData.append('folderId', "189440789850");
 
+    // Upload file to HubSpot
     const fileRes = await axios.post(
       'https://api.hubapi.com/files/v3/files',
       fileFormData,
@@ -688,9 +690,11 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
     );
     const fileId = fileRes.data.id;
 
+    // Compose note body with "Paper Quote:" followed by a line break and additional notes (if any)
     let noteBody = "Paper Quote: <br>";
     if (additionalNote) noteBody += additionalNote;
 
+    // Create a note and associate with the deal
     const noteRes = await axios.post(
       'https://api.hubapi.com/crm/v3/objects/notes',
       {
@@ -716,40 +720,12 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
       }
     );
 
-    // 🔄 Fetch owner ID for webhook payload
-    let ownerId = null;
-    try {
-      const dealRes = await axios.get(
-        `https://api.hubapi.com/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      ownerId = dealRes.data.properties?.hubspot_owner_id || null;
-    } catch (fetchErr) {
-      console.warn("⚠️ Could not fetch deal owner ID:", fetchErr.response?.data || fetchErr.message);
-    }
-
-    // 📡 Send to Zapier Webhook
-    try {
-      await axios.post('https://hooks.zapier.com/hooks/catch/20863141/2jfg17w/', {
-        dealId,
-        document: {
-          id: fileId,
-          name: req.file.originalname,
-          url: fileRes.data.url
-        },
-        ownerId
-      });
-    } catch (webhookErr) {
-      console.error("❌ Failed to notify Zapier webhook:", webhookErr.response?.data || webhookErr.message);
-    }
-
     res.json({ success: true, noteId: noteRes.data.id, fileId });
   } catch (err) {
     console.error("❌ Failed to upload contract and create note:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to upload contract', details: err.response?.data || err.message });
   }
 });
-
 
 // Append new text to an existing HubSpot note
 app.post('/api/notes/:noteId/append', async (req, res) => {
