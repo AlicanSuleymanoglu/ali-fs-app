@@ -1324,25 +1324,54 @@ app.get('/api/contacts/search', async (req, res) => {
 
   const hubspotClient = new Client({ accessToken: token });
 
+  // Split full name if possible
+  const [first, last] = query.trim().split(/\s+/, 2);
+
+  const filterGroups = [
+    {
+      filters: [
+        {
+          propertyName: 'firstname',
+          operator: 'CONTAINS_TOKEN',
+          value: query
+        }
+      ]
+    },
+    {
+      filters: [
+        {
+          propertyName: 'lastname',
+          operator: 'CONTAINS_TOKEN',
+          value: query
+        }
+      ]
+    }
+  ];
+
+  // Add full name matching only if both first and last are present
+  if (first && last) {
+    filterGroups.push({
+      filters: [
+        {
+          propertyName: 'firstname',
+          operator: 'CONTAINS_TOKEN',
+          value: first
+        },
+        {
+          propertyName: 'lastname',
+          operator: 'CONTAINS_TOKEN',
+          value: last
+        }
+      ]
+    });
+  }
+
   try {
     const result = await hubspotClient.crm.contacts.searchApi.doSearch({
-      filterGroups: [
-        {
-          filters: [
-            {
-              propertyName: 'lastname',
-              operator: 'CONTAINS_TOKEN',
-              value: query
-            }
-          ]
-        }
-      ],
+      filterGroups,
       properties: ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company'],
       limit: 20,
     });
-
-
-    console.log('HubSpot API Response:', result);  // Add this log to debug
 
     const contacts = result.results.map((c) => ({
       id: c.id,
