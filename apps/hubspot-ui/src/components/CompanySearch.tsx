@@ -44,6 +44,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
   const [selectedCompanyForDialog, setSelectedCompanyForDialog] = useState<Company | null>(null);
   const [showAddCompanyDialog, setShowAddCompanyDialog] = useState(false);
   const [isSettingUpCompany, setIsSettingUpCompany] = useState(false);
+  const [paginationAfter, setPaginationAfter] = useState<string | null>(null);
   const [newCompany, setNewCompany] = useState({
     name: '',
     street: '',
@@ -56,6 +57,8 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showContactDialog, setShowContactDialog] = useState(false);
   const onSelectRef = useRef(onSelect);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -123,7 +126,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     });
   };
 
-  const searchCompanies = async (term: string) => {
+  const searchCompanies = async (term: string, after: string | null = null, append: boolean = false) => {
     if (!term || term.trim().length < 2) {
       setSearchResults([]);
       setShowResults(false);
@@ -137,16 +140,24 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     setError(null);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/companies/search?q=${encodeURIComponent(term)}`, {
-        credentials: 'include'
-      });
+      const url = new URL(`${BASE_URL}/api/companies/search`);
+      url.searchParams.set('q', term);
+      if (after) url.searchParams.set('after', after);
+
+      const res = await fetch(url.toString(), { credentials: 'include' });
 
       if (!res.ok) {
         throw new Error('Search failed');
       }
 
       const data = await res.json();
-      setSearchResults(data.results);
+      setPaginationAfter(data.paging || null);
+
+      if (append) {
+        setSearchResults(prev => [...prev, ...data.results]);
+      } else {
+        setSearchResults(data.results);
+      }
     } catch (err) {
       console.error('❌ Company search failed:', err);
       toast.error("Company search failed");
@@ -157,7 +168,10 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     }
   };
 
-  const debouncedSearch = useCallback(debounce(searchCompanies, 300), []);
+
+  const debouncedSearch = useCallback(debounce((term: string) => {
+    searchCompanies(term);
+  }, 300), []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
@@ -345,7 +359,29 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     }
   };
 
+  const handleLoadMore = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
+    // Find the last visible company element before loading more
+    const container = resultsContainerRef.current;
+    if (!container) return;
+
+    const lastVisibleCompany = Array.from(container.getElementsByClassName('company-item'))
+      .find(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.bottom <= container.getBoundingClientRect().bottom;
+      });
+
+    setIsLoadingMore(true);
+    await searchCompanies(searchTerm, paginationAfter, true);
+    setIsLoadingMore(false);
+
+    // After new content is loaded, scroll the last visible company back into view
+    if (lastVisibleCompany) {
+      lastVisibleCompany.scrollIntoView({ block: 'nearest' });
+    }
+  };
 
   useEffect(() => {
     if (value) {
@@ -370,7 +406,14 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
               setShowResults(true);
             }
           }}
-          onBlur={() => setTimeout(() => setShowResults(false), 200)}
+          onBlur={(e) => {
+            // Check if the related target is the load more button
+            const target = e.relatedTarget as HTMLElement;
+            if (target?.className?.includes('load-more-button')) {
+              return; // Don't close if clicking load more
+            }
+            setTimeout(() => setShowResults(false), 200);
+          }}
           required={required}
           autoComplete="off"
         />
@@ -378,7 +421,10 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       </div>
 
       {showResults && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div
+          ref={resultsContainerRef}
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+        >
           {loading && <div className="p-4 text-center text-sm text-gray-500">Searching...</div>}
           {!loading && error && <div className="p-4 text-center text-sm text-red-500">{error}</div>}
           {!loading && !error && searchResults.length > 0 && (
@@ -386,7 +432,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
               {searchResults.map((company) => (
                 <div
                   key={company.id}
-                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 company-item"
                   onMouseDown={() => handleSelectCompany(company)}
                 >
                   <div className="font-medium">{company.name}</div>
@@ -395,16 +441,28 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
               ))}
             </div>
           )}
-          {!loading && !error && searchResults.length === 0 && searchTerm.trim().length >= 2 && (
+          {!loading && !error && searchResults.length > 0 && (
             <div>
-              <div className="p-4 text-center text-sm text-gray-500">No matching companies found</div>
-              <div
-                className="p-3 hover:bg-gray-100 cursor-pointer border-t border-gray-100 flex items-center text-blue-600"
-                onMouseDown={handleAddNewCompanyClick}
-              >
-                <Plus size={16} className="mr-2" />
-                <span>Add "{searchTerm}" as new company</span>
-              </div>
+              {searchResults.map((company) => (
+                <div
+                  key={company.id}
+                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 company-item"
+                  onMouseDown={() => handleSelectCompany(company)}
+                >
+                  <div className="font-medium">{company.name}</div>
+                  <div className="text-sm text-gray-500">{company.address}</div>
+                </div>
+              ))}
+
+              {/* Add this right here */}
+              {paginationAfter && (
+                <div
+                  className="p-3 text-center text-blue-600 text-sm cursor-pointer hover:underline border-t border-gray-100 load-more-button"
+                  onMouseDown={handleLoadMore}
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load more'}
+                </div>
+              )}
             </div>
           )}
         </div>

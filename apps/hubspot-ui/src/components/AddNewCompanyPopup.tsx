@@ -31,8 +31,8 @@ const AddNewCompanyPopup: React.FC<AddNewCompanyPopupProps> = ({ isOpen, onClose
     const [cuisineOptions] = useState([
         "African", "Burger", "Cafe", "Chinese",
         "Chinese - All you can eat", "Chinese - Hotpot", "Chinese - Malatang",
-        "Döner", "Fine Dining", "French", "German", "German Wirtshaus",
-        "Greek", "Healthy/Salad/Bowl", "Indian", "Italian", "Japanese",
+        "Döner", "Fine Dining", "French", "German", "German - Wirtshaus",
+        "Greek", "Healthy/Bowl", "Indian", "Italian", "Japanese",
         "Japanese - BBQ", "Japanese - Buffet", "Japanese - Sushi", "Korean", "Korean - BBQ",
         "Mediterranean", "Mexican", "Middle-Eastern", "Other", "Russian", "Steakhouse", "Tapas", "Thai", "Turkish", "Vietnamese"
     ]);

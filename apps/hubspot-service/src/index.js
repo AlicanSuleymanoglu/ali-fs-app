@@ -380,6 +380,7 @@ app.listen(PORT, () => {
 app.get('/api/companies/search', async (req, res) => {
   const token = req.session.accessToken;
   const query = req.query.q;
+  const after = req.query.after;
 
   if (!token) return res.status(401).send('Not authenticated');
   if (!query) return res.status(400).send('Missing query');
@@ -387,7 +388,7 @@ app.get('/api/companies/search', async (req, res) => {
   const hubspotClient = new Client({ accessToken: token });
 
   try {
-    const result = await hubspotClient.crm.companies.searchApi.doSearch({
+    const searchParams = {
       filterGroups: [{
         filters: [{
           propertyName: 'name',
@@ -396,8 +397,14 @@ app.get('/api/companies/search', async (req, res) => {
         }]
       }],
       properties: ['name', 'address', 'city', 'state', 'zip'],
-      limit: 10
-    });
+      limit: 10,
+    };
+
+    if (after) {
+      searchParams['after'] = after;
+    }
+
+    const result = await hubspotClient.crm.companies.searchApi.doSearch(searchParams);
 
     const companies = result.results.map(c => ({
       id: c.id,
@@ -405,12 +412,16 @@ app.get('/api/companies/search', async (req, res) => {
       address: `${c.properties.address || ''} ${c.properties.city || ''} ${c.properties.state || ''} ${c.properties.zip || ''}`.trim()
     }));
 
-    res.json({ results: companies });
+    res.json({
+      results: companies,
+      paging: result.paging?.next?.after || null
+    });
   } catch (err) {
     console.error("❌ Failed to search companies:", err.message);
     res.status(500).send("Search failed");
   }
 });
+
 
 // create contact
 // POST /api/hubspot/contacts/create
