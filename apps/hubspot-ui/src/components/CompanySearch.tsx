@@ -422,31 +422,25 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
 
       {showResults && (
         <div
-          ref={resultsContainerRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+          onMouseDown={() => {
+            interactingWithDropdown.current = true;
+          }}
         >
-          {loading && <div className="p-4 text-center text-sm text-gray-500">Searching...</div>}
-          {!loading && error && <div className="p-4 text-center text-sm text-red-500">{error}</div>}
-          {!loading && !error && searchResults.length > 0 && (
-            <div>
-              {searchResults.map((company) => (
-                <div
-                  key={company.id}
-                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 company-item"
-                  onMouseDown={() => handleSelectCompany(company)}
-                >
-                  <div className="font-medium">{company.name}</div>
-                  <div className="text-sm text-gray-500">{company.address}</div>
-                </div>
-              ))}
-            </div>
+          {loading && (
+            <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
           )}
+
+          {!loading && error && (
+            <div className="p-4 text-center text-sm text-red-500">{error}</div>
+          )}
+
           {!loading && !error && searchResults.length > 0 && (
             <div>
               {searchResults.map((company) => (
                 <div
                   key={company.id}
-                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 company-item"
+                  className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                   onMouseDown={() => handleSelectCompany(company)}
                 >
                   <div className="font-medium">{company.name}</div>
@@ -454,19 +448,32 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
                 </div>
               ))}
 
-              {/* Add this right here */}
               {paginationAfter && (
                 <div
-                  className="p-3 text-center text-blue-600 text-sm cursor-pointer hover:underline border-t border-gray-100 load-more-button"
-                  onMouseDown={handleLoadMore}
+                  className="p-3 text-center text-blue-600 text-sm cursor-pointer hover:underline border-t border-gray-100"
+                  onMouseDown={() => searchCompanies(searchTerm, paginationAfter, true)}
                 >
-                  {isLoadingMore ? 'Loading...' : 'Load more'}
+                  Load more
                 </div>
               )}
             </div>
           )}
+
+          {!loading && !error && searchResults.length === 0 && searchTerm.trim().length >= 2 && (
+            <div>
+              <div className="p-4 text-center text-sm text-gray-500">No matching companies found</div>
+              <div
+                className="p-3 hover:bg-gray-100 cursor-pointer border-t border-gray-100 flex items-center text-blue-600"
+                onMouseDown={handleAddNewCompanyClick}
+              >
+                <Plus size={16} className="mr-2" />
+                <span>Add "{searchTerm}" as new company</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
 
       {/* Contact Search Dialog */}
       <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
