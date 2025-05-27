@@ -156,10 +156,36 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
                 <SelectValue placeholder="Select a payment competitor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="SumUp">Adyen</SelectItem>
-                <SelectItem value="Flatpay">Barclaycard</SelectItem>
-                <SelectItem value="Other">Elavon</SelectItem>
-                <SelectItem value="None">First Data</SelectItem>
+                <SelectItem value="Adyen">Adyen</SelectItem>
+                <SelectItem value="bluepos">bluepos</SelectItem>
+                <SelectItem value="Dish">Dish</SelectItem>
+                <SelectItem value="ECOS">ECOS</SelectItem>
+                <SelectItem value="Flatpay">Flatpay</SelectItem>
+                <SelectItem value="Foodmato">Foodmato</SelectItem>
+                <SelectItem value="Gastronovi">Gastronovi</SelectItem>
+                <SelectItem value="Gewinnblick">Gewinnblick</SelectItem>
+                <SelectItem value="hobex">hobex</SelectItem>
+                <SelectItem value="Hypersoft">Hypersoft</SelectItem>
+                <SelectItem value="iZettle">iZettle</SelectItem>
+                <SelectItem value="Leaf Systems">Leaf Systems</SelectItem>
+                <SelectItem value="Lightspeed">Lightspeed</SelectItem>
+                <SelectItem value="Luca">Luca</SelectItem>
+                <SelectItem value="Nexi">Nexi</SelectItem>
+                <SelectItem value="None">None</SelectItem>
+                <SelectItem value="Orderbird">Orderbird</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Payjet">Payjet</SelectItem>
+                <SelectItem value="Payone">Payone</SelectItem>
+                <SelectItem value="REA Card">REA Card</SelectItem>
+                <SelectItem value="ready2order">ready2order</SelectItem>
+                <SelectItem value="Sides">Sides</SelectItem>
+                <SelectItem value="Sparkasse">Sparkasse</SelectItem>
+                <SelectItem value="SumUp">SumUp</SelectItem>
+                <SelectItem value="Sunday">Sunday</SelectItem>
+                <SelectItem value="Unzer">Unzer</SelectItem>
+                <SelectItem value="Vectron">Vectron</SelectItem>
+                <SelectItem value="Vert">Vert</SelectItem>
+                <SelectItem value="VR Bank">VR Bank</SelectItem>
               </SelectContent>
             </Select>
           </div>
