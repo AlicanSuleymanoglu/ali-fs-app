@@ -41,7 +41,6 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const [calendarMeetings, setCalendarMeetings] = useState<Array<{ id: string; startTime: string; status: string }>>([]);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
-
   // Add debug logging for meetings prop changes
   useEffect(() => {
     console.log('Meetings prop updated:', meetings.length);
@@ -58,7 +57,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
       if (!user?.user_id) return;
 
       try {
-        const res = await fetch(`$${BASE_URL}/api/meetings`, {
+        const res = await fetch(`${BASE_URL}/api/meetings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -152,7 +151,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     if (!isWithinCachedRange && user?.user_id) {
       try {
         console.log('Fetching meetings for day:', day.toISOString());
-        const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+        const res = await fetch(`${BASE_URL}/api/meetings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
