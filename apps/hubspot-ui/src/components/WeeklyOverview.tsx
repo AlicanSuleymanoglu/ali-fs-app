@@ -40,6 +40,16 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const user = useUser();
   const [calendarMeetings, setCalendarMeetings] = useState<Array<{ id: string; startTime: string; status: string }>>([]);
 
+  // Add debug logging for meetings prop changes
+  useEffect(() => {
+    console.log('Meetings prop updated:', meetings.length);
+  }, [meetings]);
+
+  // Add debug logging for context meetings changes
+  useEffect(() => {
+    console.log('Context meetings updated:', contextMeetings.length);
+  }, [contextMeetings]);
+
   // Fetch light mode meetings for calendar dots
   useEffect(() => {
     const fetchCalendarMeetings = async () => {
@@ -88,10 +98,12 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
 
   const getMeetingsForDay = (date: Date) => {
     // Use calendarMeetings for dots, but filter out canceled meetings
-    return calendarMeetings.filter(meeting => {
+    const dayMeetings = calendarMeetings.filter(meeting => {
       const meetingDate = new Date(meeting.startTime);
       return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
     });
+    console.log(`Meetings for ${date.toISOString()}:`, dayMeetings.length);
+    return dayMeetings;
   };
 
   const getTasksForDay = (date: Date) => {
@@ -115,6 +127,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   };
 
   const handleDayClick = async (day: Date) => {
+    console.log('Day clicked:', day.toISOString());
     onDateSelect(day);
     setWeekOffset(0);
 
@@ -131,9 +144,12 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
       end: rangeEnd
     });
 
+    console.log('Is within cached range:', isWithinCachedRange);
+
     // Only fetch if outside the cached range
     if (!isWithinCachedRange && user?.user_id) {
       try {
+        console.log('Fetching meetings for day:', day.toISOString());
         const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -150,15 +166,34 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
         }
 
         const data = await res.json();
-        // Merge the new meetings with existing ones, replacing any that overlap
-        const existingMeetings = meetings.filter(m => {
+        console.log('Fetched meetings:', data.results.length);
+
+        // Create a new array for existing meetings to ensure state update
+        const existingMeetings = [...meetings].filter(m => {
           const meetingDate = new Date(m.startTime);
           return !isSameDay(meetingDate, day);
         });
-        setMeetings([...existingMeetings, ...data.results]);
+
+        // Create a new array for the updated meetings
+        const updatedMeetings = [...existingMeetings, ...data.results];
+        console.log('Updated meetings array length:', updatedMeetings.length);
+
+        // Use a callback to ensure we're working with the latest state
+        setMeetings((prevMeetings: Meeting[]) => {
+          console.log('Previous meetings length:', prevMeetings.length);
+          const newMeetings = [...prevMeetings].filter(m => {
+            const meetingDate = new Date(m.startTime);
+            return !isSameDay(meetingDate, day);
+          });
+          const finalMeetings = [...newMeetings, ...data.results];
+          console.log('Final meetings length:', finalMeetings.length);
+          return finalMeetings;
+        });
       } catch (err) {
         console.error("Failed to fetch meetings for selected day:", err);
       }
+    } else {
+      console.log('Using cached meetings');
     }
   };
 
