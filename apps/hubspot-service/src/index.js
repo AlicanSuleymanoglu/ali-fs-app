@@ -186,19 +186,37 @@ app.post('/api/meetings', async (req, res) => {
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 28);
+    start.setDate(today.getDate() + diffToMonday - 14);
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 14);
+    end.setDate(today.getDate() + diffToMonday + 7);
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
   }
 
-  const { ownerId, forceRefresh } = req.body;
-  const { startTime, endTime } = getCurrentWeekWindow();
-  const cacheKey = `meetings:${ownerId}:${startTime}-${endTime}`;
+  const { ownerId, forceRefresh, singleDay, lightMode } = req.body;
+
+  // If singleDay is provided, use that day's start and end time
+  let startTime, endTime;
+  if (singleDay) {
+    const date = new Date(singleDay);
+    date.setHours(0, 0, 0, 0);
+    startTime = date.getTime();
+    date.setHours(23, 59, 59, 999);
+    endTime = date.getTime();
+  } else {
+    const window = getCurrentWeekWindow();
+    startTime = window.startTime;
+    endTime = window.endTime;
+  }
+
+  // For light mode, we'll use a different cache key and fetch a wider date range
+  const cacheKey = lightMode
+    ? `meetings:light:${ownerId}`
+    : `meetings:${ownerId}:${startTime}-${endTime}`;
+
   const cachedData = meetingCache.get(cacheKey);
 
   if (!forceRefresh && cachedData) {
@@ -210,6 +228,21 @@ app.post('/api/meetings', async (req, res) => {
     let meetings = [];
     let after = undefined;
 
+    // For light mode, fetch a much wider date range (e.g., 6 months)
+    let searchStartTime = startTime;
+    let searchEndTime = endTime;
+
+    if (lightMode) {
+      const today = new Date();
+      const sixMonthsAgo = new Date(today);
+      sixMonthsAgo.setMonth(today.getMonth() - 6);
+      const sixMonthsAhead = new Date(today);
+      sixMonthsAhead.setMonth(today.getMonth() + 6);
+
+      searchStartTime = sixMonthsAgo.getTime();
+      searchEndTime = sixMonthsAhead.getTime();
+    }
+
     do {
       const response = await axios.post(
         'https://api.hubapi.com/crm/v3/objects/meetings/search',
@@ -217,16 +250,18 @@ app.post('/api/meetings', async (req, res) => {
           filterGroups: [{
             filters: [
               { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
-              { propertyName: "hs_meeting_start_time", operator: "GTE", value: startTime },
-              { propertyName: "hs_meeting_start_time", operator: "LTE", value: endTime }
+              { propertyName: "hs_meeting_start_time", operator: "GTE", value: searchStartTime },
+              { propertyName: "hs_meeting_start_time", operator: "LTE", value: searchEndTime }
             ]
           }],
-          properties: [
-            "hs_object_id", "hs_timestamp", "hs_meeting_title",
-            "hubspot_owner_id", "hs_internal_meeting_notes",
-            "hs_meeting_location", "hs_meeting_start_time",
-            "hs_meeting_end_time", "hs_meeting_outcome", "hs_activity_type"
-          ],
+          properties: lightMode
+            ? ["hs_object_id", "hs_meeting_start_time", "hs_meeting_outcome"] // Minimal properties for light mode
+            : [
+              "hs_object_id", "hs_timestamp", "hs_meeting_title",
+              "hubspot_owner_id", "hs_internal_meeting_notes",
+              "hs_meeting_location", "hs_meeting_start_time",
+              "hs_meeting_end_time", "hs_meeting_outcome", "hs_activity_type"
+            ],
           limit: 100,
           after
         },
@@ -241,6 +276,19 @@ app.post('/api/meetings', async (req, res) => {
       return res.json({ results: [] });
     }
 
+    // For light mode, we only need minimal processing
+    if (lightMode) {
+      const lightMeetings = meetings.map(meeting => ({
+        id: meeting.id,
+        startTime: meeting.properties.hs_meeting_start_time,
+        status: meeting.properties.hs_meeting_outcome
+      }));
+
+      meetingCache.set(cacheKey, lightMeetings, 300); // Cache for 5 minutes
+      return res.json({ results: lightMeetings });
+    }
+
+    // Continue with full meeting processing for non-light mode
     const meetingIds = meetings.map(m => m.id);
     const batchSize = 10;
     const batches = [];

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   format,
   startOfWeek,
@@ -7,7 +7,10 @@ import {
   isSameMonth,
   isToday,
   addWeeks,
-  subWeeks
+  subWeeks,
+  isWithinInterval,
+  addWeeks as addWeeksDate,
+  subWeeks as subWeeksDate
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useMeetingContext } from '../context/MeetingContext';
@@ -16,6 +19,7 @@ import { Meeting } from '@/components/MeetingCard';
 import UserProfile from './UserProfile';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useUser } from '../hooks/useUser';
 
 interface WeeklyOverviewProps {
   currentDate: Date;
@@ -30,9 +34,42 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   meetings,
   onDateSelect
 }) => {
-  const { meetings: contextMeetings } = useMeetingContext(); // 👈 Get meetings from context
+  const { meetings: contextMeetings, setMeetings } = useMeetingContext();
   const [weekOffset, setWeekOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const user = useUser();
+  const [calendarMeetings, setCalendarMeetings] = useState<Array<{ id: string; startTime: string; status: string }>>([]);
+
+  // Fetch light mode meetings for calendar dots
+  useEffect(() => {
+    const fetchCalendarMeetings = async () => {
+      if (!user?.user_id) return;
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            ownerId: user.user_id,
+            lightMode: true,
+            forceRefresh: false
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch calendar meetings');
+        }
+
+        const data = await res.json();
+        setCalendarMeetings(data.results);
+      } catch (err) {
+        console.error("Failed to fetch calendar meetings:", err);
+      }
+    };
+
+    fetchCalendarMeetings();
+  }, [user?.user_id]);
 
   const displayedWeek = useMemo(() => {
     let baseDate = currentDate;
@@ -50,7 +87,8 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   }, [displayedWeek]);
 
   const getMeetingsForDay = (date: Date) => {
-    return meetings.filter(meeting => {
+    // Use calendarMeetings for dots, but filter out canceled meetings
+    return calendarMeetings.filter(meeting => {
       const meetingDate = new Date(meeting.startTime);
       return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
     });
@@ -76,9 +114,52 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     onDateSelect(new Date());
   };
 
-  const handleDayClick = (day: Date) => {
+  const handleDayClick = async (day: Date) => {
     onDateSelect(day);
     setWeekOffset(0);
+
+    // Calculate the date range for current week, next week, and last two weeks
+    const today = new Date();
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const rangeStart = subWeeksDate(currentWeekStart, 2);
+    const rangeEnd = addWeeksDate(currentWeekStart, 1);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    // Check if the clicked day is within our cached range
+    const isWithinCachedRange = isWithinInterval(day, {
+      start: rangeStart,
+      end: rangeEnd
+    });
+
+    // Only fetch if outside the cached range
+    if (!isWithinCachedRange && user?.user_id) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            ownerId: user.user_id,
+            singleDay: day.toISOString(),
+            forceRefresh: true
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch meetings');
+        }
+
+        const data = await res.json();
+        // Merge the new meetings with existing ones, replacing any that overlap
+        const existingMeetings = meetings.filter(m => {
+          const meetingDate = new Date(m.startTime);
+          return !isSameDay(meetingDate, day);
+        });
+        setMeetings([...existingMeetings, ...data.results]);
+      } catch (err) {
+        console.error("Failed to fetch meetings for selected day:", err);
+      }
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
