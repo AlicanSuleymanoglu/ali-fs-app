@@ -176,24 +176,21 @@ app.get('/api/me', checkTokenExpiration, async (req, res) => {
 
 
 
-// ✅ Get meetings by user WITH contactId, companyId, and dealId
 app.post('/api/meetings', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
   function getCurrentWeekWindow() {
     const today = new Date();
-    const day = today.getDay(); // Sunday - Saturday : 0 - 6
+    const day = today.getDay();
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
-    // Start: Last week's Friday
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 3); // -3 to get to last week's Friday
+    start.setDate(today.getDate() + diffToMonday - 7);
     start.setHours(0, 0, 0, 0);
 
-    // End: This week's Sunday
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 6); // +6 to get to this week's Sunday
+    end.setDate(today.getDate() + diffToMonday + 14);
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
@@ -201,7 +198,6 @@ app.post('/api/meetings', async (req, res) => {
 
   const { ownerId, forceRefresh } = req.body;
   const { startTime, endTime } = getCurrentWeekWindow();
-
   const cacheKey = `meetings:${ownerId}:${startTime}-${endTime}`;
   const cachedData = meetingCache.get(cacheKey);
 
@@ -209,10 +205,11 @@ app.post('/api/meetings', async (req, res) => {
     console.log('✅ Returning cached meetings');
     return res.json({ results: cachedData });
   }
-  let meetings = [];
-  let after = undefined;
 
   try {
+    let meetings = [];
+    let after = undefined;
+
     do {
       const response = await axios.post(
         'https://api.hubapi.com/crm/v3/objects/meetings/search',
@@ -231,107 +228,158 @@ app.post('/api/meetings', async (req, res) => {
             "hs_meeting_end_time", "hs_meeting_outcome", "hs_activity_type"
           ],
           limit: 100,
-          after: after,
+          after
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       meetings.push(...response.data.results);
       after = response.data.paging?.next?.after || undefined;
-
     } while (after);
 
-    const meetingsWithDetails = await Promise.all(
-      meetings.map(async (meeting) => {
-        const { id, properties } = meeting;
+    if (meetings.length === 0) {
+      console.log('ℹ️ No meetings found');
+      return res.json({ results: [] });
+    }
 
-        // Default values
-        let companyName = 'Unknown Company';
-        let companyAddress = 'Unknown Address';
-        let companyId = null;
-        let contactName = 'Unknown Contact';
-        let contactPhone = '';
-        let contactId = null;
-        let dealId = null;
+    const meetingIds = meetings.map(m => m.id);
+    const batchSize = 10;
+    const batches = [];
+    for (let i = 0; i < meetingIds.length; i += batchSize) {
+      batches.push(meetingIds.slice(i, i + batchSize));
+    }
 
-        try {
-          const assocRes = await axios.get(
-            `https://api.hubapi.com/crm/v3/objects/meetings/${id}/associations/companies`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          companyId = assocRes.data.results?.[0]?.id || null;
-          if (companyId) {
-            const companyRes = await axios.get(
-              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,address,city`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            companyName = companyRes.data.properties.name || 'Unnamed Company';
-            const street = companyRes.data.properties.address || '';
-            const city = companyRes.data.properties.city || '';
-            companyAddress = [street, city].filter(Boolean).join(', ') || 'Unknown Address';
-          }
-        } catch (e) {
-          console.warn(`⚠️ Could not fetch company for meeting ${id}`);
-        }
+    const [companyAssociations, contactAssociations, dealAssociations] = await Promise.all([
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/companies/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      )),
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/contacts/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      )),
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/deals/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      ))
+    ]);
 
-        try {
-          const assocContactRes = await axios.get(
-            `https://api.hubapi.com/crm/v3/objects/meetings/${id}/associations/contacts`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          contactId = assocContactRes.data.results?.[0]?.id || null;
-          if (contactId) {
-            const contactRes = await axios.get(
-              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname,phone`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            contactName = `${contactRes.data.properties.firstname || ''} ${contactRes.data.properties.lastname || ''}`.trim();
-            contactPhone = contactRes.data.properties.phone || '';
-          }
-        } catch (e) {
-          console.warn(`⚠️ Could not fetch contact for meeting ${id}`);
-        }
+    const allCompanyAssociations = companyAssociations.flatMap(r => r.data.results);
+    const allContactAssociations = contactAssociations.flatMap(r => r.data.results);
+    const allDealAssociations = dealAssociations.flatMap(r => r.data.results);
 
-        try {
-          const dealsRes = await axios.get(
-            `https://api.hubapi.com/crm/v4/objects/meetings/${id}/associations/deals`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          dealId = dealsRes.data.results?.[0]?.toObjectId || null;
-        } catch (e) {
-          console.warn(`⚠️ Could not fetch deal for meeting ${id}`);
-        }
-
-        const date = new Date(properties.hs_meeting_start_time).toLocaleDateString('de-DE');
-
-        return {
-          id,
-          title: properties.hs_meeting_title || 'Untitled',
-          startTime: properties.hs_meeting_start_time,
-          endTime: properties.hs_meeting_end_time,
-          date,
-          address: properties.hs_meeting_location,
-          companyAddress: companyAddress,
-          status: properties.hs_meeting_outcome || 'scheduled',
-          type: properties.hs_activity_type || 'meeting',
-          companyName,
-          companyId,
-          contactName,
-          contactPhone,
-          contactId,
-          dealId,
-          internalNotes: properties.hs_internal_meeting_notes || '',
-        };
-      })
+    const meetingToCompanyMap = new Map(
+      allCompanyAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
     );
+    const meetingToContactMap = new Map(
+      allContactAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
+    );
+    const meetingToDealMap = new Map(
+      allDealAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
+    );
+
+    const companyIds = [...new Set(allCompanyAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+    const contactIds = [...new Set(allContactAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+
+    console.log(`🔍 Fetching ${companyIds.length} company details and ${contactIds.length} contact details`);
+
+    const [companyDetails, contactDetails] = await Promise.all([
+      companyIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/companies/batch/read',
+        {
+          properties: ['name', 'address', 'city'],
+          inputs: companyIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(err => {
+        console.error("❌ Company detail fetch error", err.response?.data || err.message);
+        return { data: { results: [] } };
+      }) : { data: { results: [] } },
+
+      contactIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/contacts/batch/read',
+        {
+          properties: ['firstname', 'lastname', 'phone'],
+          inputs: contactIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(err => {
+        console.error("❌ Contact detail fetch error", err.response?.data || err.message);
+        return { data: { results: [] } };
+      }) : { data: { results: [] } }
+    ]);
+
+    console.log('📦 Raw company detail response:', JSON.stringify(companyDetails.data, null, 2));
+    console.log('📦 Raw contact detail response:', JSON.stringify(contactDetails.data, null, 2));
+
+    const companyMap = new Map(
+      companyDetails.data.results.map(c => [c.id, {
+        name: c.properties.name || 'Unnamed Company',
+        address: [c.properties.address, c.properties.city].filter(Boolean).join(', ') || 'Unknown Address'
+      }])
+    );
+    const contactMap = new Map(
+      contactDetails.data.results.map(c => [c.id, {
+        name: `${c.properties.firstname || ''} ${c.properties.lastname || ''}`.trim(),
+        phone: c.properties.phone || ''
+      }])
+    );
+
+    const meetingsWithDetails = meetings.map(meeting => {
+      const { id, properties } = meeting;
+      const companyId = meetingToCompanyMap.get(id);
+      const contactId = meetingToContactMap.get(id);
+      const dealId = meetingToDealMap.get(id);
+
+      const company = companyMap.get(String(companyId));
+      const contact = contactMap.get(String(contactId));
+
+      if (!company && companyId) {
+        console.warn(`⚠️ Missing company for ID ${companyId}`);
+      }
+      if (!contact && contactId) {
+        console.warn(`⚠️ Missing contact for ID ${contactId}`);
+      }
+
+      return {
+        id,
+        title: properties.hs_meeting_title || 'Untitled',
+        startTime: properties.hs_meeting_start_time,
+        endTime: properties.hs_meeting_end_time,
+        date: new Date(properties.hs_meeting_start_time).toLocaleDateString('de-DE'),
+        address: properties.hs_meeting_location || '',
+        companyAddress: company?.address || 'Unknown Address',
+        companyName: company?.name || 'Unknown Company',
+        companyId: companyId || null,
+        contactName: contact?.name || 'Unknown Contact',
+        contactPhone: contact?.phone || '',
+        contactId: contactId || null,
+        dealId: dealId || null,
+        internalNotes: properties.hs_internal_meeting_notes || '',
+        status: properties.hs_meeting_outcome || 'scheduled',
+        type: properties.hs_activity_type || 'meeting'
+      };
+    });
+
     meetingCache.set(cacheKey, meetingsWithDetails);
-    console.log(`📦 Cached ${meetingsWithDetails.length} meetings for ${ownerId}`);
+    console.log(`✅ Cached ${meetingsWithDetails.length} meetings for owner ${ownerId}`);
     res.json({ results: meetingsWithDetails });
+
   } catch (err) {
-    console.error("❌ HubSpot API error:", err.response?.data || err.message);
+    console.error("🔥 Unexpected error:", err.stack || err.message);
     res.status(500).json({ error: 'Failed to fetch meetings' });
   }
 });
+
+
 
 
 
