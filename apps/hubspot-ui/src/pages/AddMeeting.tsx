@@ -116,7 +116,7 @@ const AddMeeting: React.FC = () => {
       const patchPayload = {
         startTime: meetingDate.toISOString(),
         endTime: endDate.toISOString(),
-        notes: notes || ""
+        internalNotes: notes || ""
       };
 
       try {
