@@ -186,7 +186,7 @@ app.post('/api/meetings', async (req, res) => {
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 7);
+    start.setDate(today.getDate() + diffToMonday - 28);
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(today);
@@ -1060,8 +1060,11 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
       }
     });
     // Log the FULL response from HubSpot!
-    console.log('HubSpot PATCH response:', JSON.stringify(result, null, 2));
-    res.json({ success: true });
+    console.log('✅ Meeting rescheduled:', meetingId);
+    res.json({
+      success: true,
+      redirectUrl: '/dashboard'  // Add redirect URL to response
+    });
   } catch (err) {
     console.error("❌ Failed to reschedule meeting:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to reschedule meeting' });

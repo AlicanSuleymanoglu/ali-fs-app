@@ -11,6 +11,9 @@ import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group.tsx";
 import { cn } from "../lib/utils.ts";
 import { toast } from "sonner";
 import CompanySearch, { Company } from '../components/CompanySearch.tsx';
+import { useMeetingContext } from '../context/MeetingContext.tsx';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
+import { useUser } from '../hooks/useUser.ts';
 
 console.log("AddMeeting mounted");
 
@@ -18,6 +21,8 @@ const AddMeeting: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL;
+  const { setMeetings } = useMeetingContext();
+  const user = useUser();
 
   // Detect reschedule/followup
   const isRescheduling = location.pathname.includes('reschedule') ||
@@ -125,8 +130,16 @@ const AddMeeting: React.FC = () => {
 
         if (!res.ok) throw new Error("Failed to reschedule meeting");
 
+        const data = await res.json();
         toast.success("Meeting rescheduled!");
-        handleBack();
+
+        // Refresh meetings after successful rescheduling
+        if (user?.user_id) {
+          await refreshMeetings(user.user_id, setMeetings);
+        }
+
+        // Use the redirect URL from the response, or fallback to dashboard
+        navigate(data.redirectUrl || '/dashboard');
       } catch (err) {
         console.error("❌ Meeting reschedule failed", err);
         toast.error("Failed to reschedule meeting");
