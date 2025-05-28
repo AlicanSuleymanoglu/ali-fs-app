@@ -190,7 +190,7 @@ app.post('/api/meetings', async (req, res) => {
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 7);
+    end.setDate(today.getDate() + diffToMonday + 14);
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };

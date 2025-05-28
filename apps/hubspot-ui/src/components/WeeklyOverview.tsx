@@ -12,14 +12,14 @@ import {
   addWeeks as addWeeksDate,
   subWeeks as subWeeksDate
 } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { useMeetingContext } from '../context/MeetingContext';
-import { Task } from '@/types';
-import { Meeting } from '@/components/MeetingCard';
-import UserProfile from './UserProfile';
+import { cn } from '../lib/utils.ts';
+import { useMeetingContext } from '../context/MeetingContext.tsx';
+import { Task } from '../types/index.ts';
+import { Meeting } from '../components/MeetingCard.tsx';
+import UserProfile from './UserProfile.tsx';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useUser } from '../hooks/useUser';
+import { Button } from '../components/ui/button.tsx';
+import { useUser } from '../hooks/useUser.ts';
 
 interface WeeklyOverviewProps {
   currentDate: Date;
