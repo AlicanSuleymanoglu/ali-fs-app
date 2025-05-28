@@ -39,6 +39,8 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const touchStartX = useRef<number | null>(null);
   const user = useUser();
   const [calendarMeetings, setCalendarMeetings] = useState<Array<{ id: string; startTime: string; status: string }>>([]);
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
+
 
   // Add debug logging for meetings prop changes
   useEffect(() => {
@@ -56,7 +58,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
       if (!user?.user_id) return;
 
       try {
-        const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+        const res = await fetch(`$${BASE_URL}/api/meetings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
