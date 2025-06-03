@@ -128,6 +128,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
                 <SelectItem value="Gastronovi">Gastronovi</SelectItem>
                 <SelectItem value="Hello Tess">Hello Tess</SelectItem>
                 <SelectItem value="Hypersoft">Hypersoft</SelectItem>
+                <SelectItem value="Lightspeed">Lightspeed</SelectItem>
                 <SelectItem value="Luca">Luca</SelectItem>
                 <SelectItem value="Orderbird">Orderbird</SelectItem>
                 <SelectItem value="Procomsys">Procomsys</SelectItem>
