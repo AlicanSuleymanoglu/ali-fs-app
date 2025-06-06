@@ -180,21 +180,22 @@ app.post('/api/meetings', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
-  function getCurrentWeekWindow() {
+  function getFocusedWindow() {
     const today = new Date();
     const day = today.getDay();
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 14);
+    start.setDate(today.getDate() + diffToMonday - 21); // 3 weeks back
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 14);
+    end.setDate(today.getDate() + diffToMonday + 14); // 2 weeks ahead
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
   }
+
 
   const { ownerId, forceRefresh, singleDay, lightMode } = req.body;
 
@@ -207,7 +208,7 @@ app.post('/api/meetings', async (req, res) => {
     date.setHours(23, 59, 59, 999);
     endTime = date.getTime();
   } else {
-    const window = getCurrentWeekWindow();
+    const window = getFocusedWindow();  // <- our new function
     startTime = window.startTime;
     endTime = window.endTime;
   }
