@@ -12,6 +12,9 @@ import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
 import { useUser } from '../hooks/useUser.ts';
 import { refreshMeetings } from '../utils/refreshMeetings.ts';
+import { Textarea } from "../components/ui/textarea.tsx";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group.tsx";
+import { Label } from "../components/ui/label.tsx";
 
 const FollowUpOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +37,9 @@ const FollowUpOutcome: React.FC = () => {
   const [isVoiceNoteSent, setIsVoiceNoteSent] = useState(false);
   const [showTaskSuccess, setShowTaskSuccess] = useState(false);
   const [createdTaskDate, setCreatedTaskDate] = useState<Date | null>(null);
+  const [inputMethod, setInputMethod] = useState<'audio' | 'text'>('audio');
+  const [textInput, setTextInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!meetingDetails) {
@@ -83,6 +89,47 @@ const FollowUpOutcome: React.FC = () => {
     }
   };
 
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) {
+      toast.error("Please enter some text before submitting");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/company/note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          note: textInput,
+          companyId: meetingDetails?.companyId,
+          dealId: meetingDetails?.dealId,
+          contactId: meetingDetails?.contactId,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to send text note');
+      toast.success("Note sent successfully");
+      setIsVoiceNoteSent(true);
+      // Navigate to the follow-up options page after successful note
+      navigate(`/meeting/${id}/follow-up-options`, {
+        state: {
+          isHotDeal,
+          dealId,
+          isVoiceNoteSent: true
+        }
+      });
+    } catch (err) {
+      toast.error("Failed to send note");
+      console.error("Backend error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // If we're coming back from the options page, don't show the recorder
   if (location.state?.isVoiceNoteSent) {
     navigate(`/meeting/${id}/follow-up-options`, {
@@ -108,10 +155,48 @@ const FollowUpOutcome: React.FC = () => {
         </Button>
 
         <div className="w-full max-w-md mx-auto">
-          <h2 className="text-xl font-semibold mb-6 text-center">Follow-Up Voice Note</h2>
+          <h2 className="text-xl font-semibold mb-6 text-center">Follow-Up Note</h2>
 
           <div className="allo-card">
-            <AudioRecorder onSend={handleAudioSend} />
+            <div className="mb-6">
+              <RadioGroup
+                defaultValue="audio"
+                value={inputMethod}
+                onValueChange={(value) => setInputMethod(value as 'audio' | 'text')}
+                className="flex gap-4 justify-center"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="audio" id="audio" />
+                  <Label htmlFor="audio">Voice Recording</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="text" id="text" />
+                  <Label htmlFor="text">Granola Note</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {inputMethod === 'audio' && (
+              <AudioRecorder onSend={handleAudioSend} />
+            )}
+
+            {inputMethod === 'text' && (
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Enter your note here..."
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.currentTarget.value)}
+                  className="min-h-[150px]"
+                />
+                <Button
+                  onClick={handleTextSubmit}
+                  disabled={isSubmitting || !textInput.trim()}
+                  className="w-full"
+                >
+                  {isSubmitting ? "Sending..." : "Send Note"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

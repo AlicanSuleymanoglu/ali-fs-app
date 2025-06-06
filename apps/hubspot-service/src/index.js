@@ -1773,3 +1773,88 @@ app.get('/api/identify-caller', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+app.post('/api/company/note', async (req, res) => {
+  const token = req.session.accessToken;
+  if (!token) return res.status(401).send('Not authenticated');
+
+  const { note, companyId, dealId, contactId } = req.body;
+
+  // Validate required fields
+  if (!note || !note.trim()) {
+    return res.status(400).json({ error: 'Note content is required' });
+  }
+  if (!companyId) {
+    return res.status(400).json({ error: 'Company ID is required' });
+  }
+
+  try {
+    // Step 1: Create the note with prefix
+    const noteResponse = await axios.post(
+      'https://api.hubapi.com/crm/v3/objects/notes',
+      {
+        properties: {
+          hs_note_body: `Meeting Notes:\n\n${note.trim()}`,
+          hs_timestamp: Date.now(),
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const noteId = noteResponse.data.id;
+
+    // Helper function to create associations
+    const associateNote = async (toType, toId, associationTypeId) => {
+      return axios.put(
+        `https://api.hubapi.com/crm/v3/objects/notes/${noteId}/associations/${toType}/${toId}/${associationTypeId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    };
+
+    // Step 2: Associate with Company (associationTypeId 189)
+    await associateNote('companies', companyId, 190);
+
+    // Optional associations
+    if (dealId) {
+      await associateNote('deals', dealId, 214);
+    }
+
+    if (contactId) {
+      await associateNote('contacts', contactId, 202);
+    }
+
+    console.log('✅ Company note created and associated:', {
+      noteId,
+      companyId,
+      dealId: dealId || 'none',
+      contactId: contactId || 'none'
+    });
+
+    res.json({
+      success: true,
+      noteId,
+      associations: {
+        companyId,
+        dealId: dealId || null,
+        contactId: contactId || null
+      }
+    });
+  } catch (err) {
+    console.error('❌ Failed to create or associate note:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Failed to create or associate note',
+      details: err.response?.data || err.message
+    });
+  }
+});

@@ -8,8 +8,9 @@ import ClosedLostReasonForm from '../components/ClosedLostReasonForm.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx'; // if using context
 import { useUser } from '../hooks/useUser.ts';
 import { refreshMeetings } from '../utils/refreshMeetings.ts';
-
-
+import { Textarea } from "../components/ui/textarea.tsx";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group.tsx";
+import { Label } from "../components/ui/label.tsx";
 
 const NegativeOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +56,9 @@ const NegativeOutcome: React.FC = () => {
 
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [step, setStep] = useState<'voice' | 'reason'>('voice');
+  const [inputMethod, setInputMethod] = useState<'audio' | 'text'>('audio');
+  const [textInput, setTextInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAudioSend = async (blob: Blob) => {
     setAudioBlob(blob);
@@ -85,6 +89,38 @@ const NegativeOutcome: React.FC = () => {
     }
   };
 
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) {
+      toast.error("Please enter some text before submitting");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/company/note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          note: textInput,
+          companyId: meetingDetails?.companyId,
+          dealId: meetingDetails?.dealId,
+          contactId: meetingDetails?.contactId,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to send text note');
+      toast.success("Note sent successfully");
+      setStep('reason');
+    } catch (err) {
+      toast.error("Failed to send note");
+      console.error("Backend error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleComplete = async () => {
     try {
@@ -116,7 +152,6 @@ const NegativeOutcome: React.FC = () => {
     }
   };
 
-
   return (
     <div className="allo-page">
       <div className="allo-container">
@@ -134,7 +169,45 @@ const NegativeOutcome: React.FC = () => {
 
           {step === 'voice' && (
             <div className="allo-card mb-6">
-              <AudioRecorder onSend={handleAudioSend} />
+              <div className="mb-6">
+                <RadioGroup
+                  defaultValue="audio"
+                  value={inputMethod}
+                  onValueChange={(value) => setInputMethod(value as 'audio' | 'text')}
+                  className="flex gap-4 justify-center"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="audio" id="audio" />
+                    <Label htmlFor="audio">Voice Recording</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="text" id="text" />
+                    <Label htmlFor="text">Granola Note</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {inputMethod === 'audio' && (
+                <AudioRecorder onSend={handleAudioSend} />
+              )}
+
+              {inputMethod === 'text' && (
+                <div className="space-y-4">
+                  <Textarea
+                    placeholder="Enter your note here..."
+                    value={textInput}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTextInput(e.target.value)}
+                    className="min-h-[150px]"
+                  />
+                  <Button
+                    onClick={handleTextSubmit}
+                    disabled={isSubmitting || !textInput.trim()}
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Sending..." : "Send Note"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
