@@ -139,7 +139,10 @@ const AddMeeting: React.FC = () => {
         }
 
         // Use the redirect URL from the response, or fallback to dashboard
-        navigate(data.redirectUrl || '/dashboard');
+        if (location.state?.isFollowUp) {
+          navigate('/dashboard');
+          return;
+        }
       } catch (err) {
         console.error("❌ Meeting reschedule failed", err);
         toast.error("Failed to reschedule meeting");
@@ -193,6 +196,12 @@ const AddMeeting: React.FC = () => {
         toast.success("Past meeting logged as completed");
       } else {
         toast.success(isFollowUp ? "Follow-up scheduled" : "Meeting scheduled");
+      }
+
+      // Use the redirect URL from the response, or fallback to dashboard
+      if (location.state?.isFollowUp) {
+        navigate('/dashboard');
+        return;
       }
 
       handleBack();

@@ -199,7 +199,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     >
       {!isDisplayedWeekSupported && (
         <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
-          Only <b>Meetings</b> within <b>3 weeks</b> past or future are shown.
+          Currently only <b>Meetings</b> within <b>3 weeks</b> past or future are shown.
           Check HubSpot for more.
         </div>
       )}

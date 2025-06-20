@@ -13,7 +13,6 @@ interface ClosedWonReasonFormProps {
 
 const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onComplete }) => {
   const [reason, setReason] = useState<string>("");
-  const [otherReason, setOtherReason] = useState<string>("");
   const [posCompetitor, setPosCompetitor] = useState<string>("");
   const [paymentCompetitor, setPaymentCompetitor] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -32,11 +31,6 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
       return;
     }
 
-    if (reason === "Other" && !otherReason) {
-      toast.error("Please provide details for the other reason");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -45,7 +39,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          closed_won_reason: reason === "Other" ? otherReason : reason,
+          closed_won_reason: reason,
           pos_competitor: posCompetitor,
           payment_competitor: paymentCompetitor,
         }),
@@ -82,7 +76,6 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
-                {/* ... all your SelectItems ... */}
                 <SelectItem value="Specific Features">Specific Features</SelectItem>
                 <SelectItem value="Attractive Pricing">Attractive Pricing</SelectItem>
                 <SelectItem value="Sales Manager Skills">Sales Manager Skills</SelectItem>
@@ -95,19 +88,6 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
               </SelectContent>
             </Select>
           </div>
-          {/* Other reason input */}
-          {reason === "Other" && (
-            <div className="space-y-2">
-              <Label htmlFor="other-reason">Other Reason <span className="text-red-500">*</span></Label>
-              <Input
-                id="other-reason"
-                value={otherReason}
-                onChange={(e) => setOtherReason(e.target.value)}
-                placeholder="Please specify"
-                disabled={loading}
-              />
-            </div>
-          )}
           {/* POS Competitor */}
           <div className="space-y-2">
             <Label htmlFor="pos-competitor">POS Competitor</Label>
