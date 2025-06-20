@@ -199,7 +199,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     >
       {!isDisplayedWeekSupported && (
         <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
-          Only meetings within the last 3 weeks and next 2 weeks are available.
+          Only meetings within the last 3 weeks and next 2 weeks are available!
         </div>
       )}
       <div className="flex justify-between items-center mb-3">
