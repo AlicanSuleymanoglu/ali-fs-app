@@ -185,33 +185,26 @@ app.post('/api/meetings', async (req, res) => {
     const day = today.getDay();
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
+    // Start: Monday 3 weeks ago
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 21); // 3 weeks back
+    start.setDate(today.getDate() + diffToMonday - 21);
     start.setHours(0, 0, 0, 0);
 
+    // End: Sunday 2 weeks ahead (go to Monday 2 weeks ahead, then add 6 days)
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 14); // 2 weeks ahead
+    end.setDate(today.getDate() + diffToMonday + 14 + 6);
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
   }
 
 
-  const { ownerId, forceRefresh, singleDay, lightMode } = req.body;
+  const { ownerId, forceRefresh, lightMode } = req.body;
 
-  // If singleDay is provided, use that day's start and end time
-  let startTime, endTime;
-  if (singleDay) {
-    const date = new Date(singleDay);
-    date.setHours(0, 0, 0, 0);
-    startTime = date.getTime();
-    date.setHours(23, 59, 59, 999);
-    endTime = date.getTime();
-  } else {
-    const window = getFocusedWindow();  // <- our new function
-    startTime = window.startTime;
-    endTime = window.endTime;
-  }
+  // Always use the rolling 5-week window
+  const window = getFocusedWindow();
+  const startTime = window.startTime;
+  const endTime = window.endTime;
 
   // For light mode, we'll use a different cache key and fetch a wider date range
   const cacheKey = lightMode

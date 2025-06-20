@@ -127,74 +127,28 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     onDateSelect(new Date());
   };
 
-  const handleDayClick = async (day: Date) => {
+  const handleDayClick = (day: Date) => {
     console.log('Day clicked:', day.toISOString());
     onDateSelect(day);
     setWeekOffset(0);
 
-    // Calculate the date range for current week, next week, and last two weeks
+    // Optionally, notify if the day is outside the cached range
     const today = new Date();
     const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const rangeStart = subWeeksDate(currentWeekStart, 2);
-    const rangeEnd = addWeeksDate(currentWeekStart, 1);
+    const rangeStart = subWeeksDate(currentWeekStart, 3); // 3 weeks before
+    const rangeEnd = addWeeksDate(currentWeekStart, 2);   // 2 weeks after
+    rangeEnd.setDate(rangeEnd.getDate() + 6); // Move to Sunday of that week
     rangeEnd.setHours(23, 59, 59, 999);
 
-    // Check if the clicked day is within our cached range
     const isWithinCachedRange = isWithinInterval(day, {
       start: rangeStart,
       end: rangeEnd
     });
 
-    console.log('Is within cached range:', isWithinCachedRange);
-
-    // Only fetch if outside the cached range
-    if (!isWithinCachedRange && user?.user_id) {
-      try {
-        console.log('Fetching meetings for day:', day.toISOString());
-        const res = await fetch(`${BASE_URL}/api/meetings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            ownerId: user.user_id,
-            singleDay: day.toISOString(),
-            forceRefresh: true
-          })
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch meetings');
-        }
-
-        const data = await res.json();
-        console.log('Fetched meetings:', data.results.length);
-
-        // Create a new array for existing meetings to ensure state update
-        const existingMeetings = [...meetings].filter(m => {
-          const meetingDate = new Date(m.startTime);
-          return !isSameDay(meetingDate, day);
-        });
-
-        // Create a new array for the updated meetings
-        const updatedMeetings = [...existingMeetings, ...data.results];
-        console.log('Updated meetings array length:', updatedMeetings.length);
-
-        // Use a callback to ensure we're working with the latest state
-        setMeetings((prevMeetings: Meeting[]) => {
-          console.log('Previous meetings length:', prevMeetings.length);
-          const newMeetings = [...prevMeetings].filter(m => {
-            const meetingDate = new Date(m.startTime);
-            return !isSameDay(meetingDate, day);
-          });
-          const finalMeetings = [...newMeetings, ...data.results];
-          console.log('Final meetings length:', finalMeetings.length);
-          return finalMeetings;
-        });
-      } catch (err) {
-        console.error("Failed to fetch meetings for selected day:", err);
-      }
-    } else {
-      console.log('Using cached meetings');
+    if (!isWithinCachedRange) {
+      // Optionally show a toast or message
+      // toast.info('Only meetings within the last 3 weeks and next 2 weeks are available.');
+      console.log('Selected day is outside the cached range.');
     }
   };
 
@@ -222,12 +176,32 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const isCurrentDateToday = isToday(currentDate);
   const isTodayInCurrentWeek = weekDays.some(day => isToday(day));
 
+  // Calculate the supported cached range
+  const today = new Date();
+  const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const rangeStart = subWeeksDate(currentWeekStart, 3); // 3 weeks before
+  const rangeEnd = addWeeksDate(currentWeekStart, 2);   // 2 weeks after
+  rangeEnd.setDate(rangeEnd.getDate() + 6); // Move to Sunday of that week
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  // Check if the displayed week is within the cached range
+  const displayedWeekStart = startOfWeek(displayedWeek, { weekStartsOn: 1 });
+  const displayedWeekEnd = addDays(displayedWeekStart, 6);
+  const isDisplayedWeekSupported =
+    isWithinInterval(displayedWeekStart, { start: rangeStart, end: rangeEnd }) &&
+    isWithinInterval(displayedWeekEnd, { start: rangeStart, end: rangeEnd });
+
   return (
     <div
       className="bg-white rounded-lg shadow-sm p-4 mb-4"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {!isDisplayedWeekSupported && (
+        <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
+          Only meetings within the last 3 weeks and next 2 weeks are available.
+        </div>
+      )}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-semibold">
