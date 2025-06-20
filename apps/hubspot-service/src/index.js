@@ -190,9 +190,9 @@ app.post('/api/meetings', async (req, res) => {
     start.setDate(today.getDate() + diffToMonday - 21);
     start.setHours(0, 0, 0, 0);
 
-    // End: Sunday 2 weeks ahead (go to Monday 2 weeks ahead, then add 6 days)
+    // End: Sunday 3 weeks ahead (go to Monday 3 weeks ahead, then add 6 days)
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 14 + 6);
+    end.setDate(today.getDate() + diffToMonday + 21 + 6);
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };

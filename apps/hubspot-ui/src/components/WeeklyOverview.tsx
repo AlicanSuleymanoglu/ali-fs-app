@@ -180,7 +180,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const today = new Date();
   const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
   const rangeStart = subWeeksDate(currentWeekStart, 3); // 3 weeks before
-  const rangeEnd = addWeeksDate(currentWeekStart, 2);   // 2 weeks after
+  const rangeEnd = addWeeksDate(currentWeekStart, 3);   // 3 weeks after
   rangeEnd.setDate(rangeEnd.getDate() + 6); // Move to Sunday of that week
   rangeEnd.setHours(23, 59, 59, 999);
 
@@ -199,7 +199,8 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     >
       {!isDisplayedWeekSupported && (
         <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
-          Only meetings within the last 3 weeks and next 2 weeks are available!
+          Only <b>Meetings</b> within <b>3 weeks</b> past or future are shown.
+          Check HubSpot for more.
         </div>
       )}
       <div className="flex justify-between items-center mb-3">
