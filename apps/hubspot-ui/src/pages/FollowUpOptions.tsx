@@ -133,7 +133,7 @@ const FollowUpOptions: React.FC = () => {
             taskDate: unixMillis,
             companyId: meetingDetails.companyId,
             contactId: meetingDetails.contactId,
-            dealId: meetingDetails.dealId,
+            dealId: targetDealId,
             companyName: meetingDetails.companyName,
             ownerId: user.user_id,
             meetingId: meetingDetails.id,
@@ -173,7 +173,21 @@ const FollowUpOptions: React.FC = () => {
                 setCreatedTaskDate(null);
                 setShowTaskOptions(false);
                 setShowDateSelector(false);
-                navigate('/dashboard');
+                if (location.state?.completedDeals && location.state?.dealId) {
+                    const updatedCompletedDeals = {
+                        ...location.state.completedDeals,
+                        [location.state.dealId]: 'followup'
+                    };
+                    navigate(`/meeting/${id}/outcome`, {
+                        state: {
+                            completedDeals: updatedCompletedDeals,
+                            completedDealId: location.state.dealId,
+                            completedDealStatus: 'followup'
+                        }
+                    });
+                } else {
+                    navigate('/dashboard');
+                }
             }, 3000);
 
         } catch (err) {

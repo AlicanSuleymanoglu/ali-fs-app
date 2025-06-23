@@ -198,7 +198,22 @@ const AddMeeting: React.FC = () => {
 
       // Use the redirect URL from the response, or fallback to dashboard
       if (location.state?.isFollowUp) {
-        navigate('/dashboard');
+        // Multi-deal flow: go back to DealSelector if completedDeals exists
+        if (location.state?.completedDeals && location.state?.meetingId && location.state?.dealId) {
+          const updatedCompletedDeals = {
+            ...location.state.completedDeals,
+            [location.state.dealId]: 'followup'
+          };
+          navigate(`/meeting/${location.state.meetingId}/outcome`, {
+            state: {
+              completedDeals: updatedCompletedDeals,
+              completedDealId: location.state.dealId,
+              completedDealStatus: 'followup'
+            }
+          });
+        } else {
+          navigate('/dashboard');
+        }
         return;
       }
 
@@ -238,13 +253,11 @@ const AddMeeting: React.FC = () => {
   // Fixing linter errors
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = (e.target as HTMLSelectElement).value;
-    setStartTime(value);
+    setStartTime(e.currentTarget.value);
   };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = (e.target as HTMLTextAreaElement).value;
-    setNotes(value);
+    setNotes(e.currentTarget.value);
   };
 
   // UI logic
