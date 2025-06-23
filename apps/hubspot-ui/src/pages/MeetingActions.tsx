@@ -27,6 +27,7 @@ import {
 } from '../components/ui/alert-dialog.tsx';
 import { cn } from '../lib/utils.ts'; // Added cn
 import { toast } from '../components/ui/use-toast.ts';
+import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover.tsx';
 
 // Add type for meeting
 interface Meeting {
@@ -34,7 +35,18 @@ interface Meeting {
   companyId?: string;
   dealId?: string;
   contactId?: string;
-  // ... other meeting properties
+  companies?: Array<{ id: string; name: string; }>;
+  deals?: Array<{ id: string; name: string; }>;
+  companyCount?: number;
+  dealCount?: number;
+  title?: string;
+  companyName?: string;
+  address?: string;
+  contactName?: string;
+  contactPhone?: string;
+  internalNotes?: string;
+  startTime?: string;
+  type?: string;
 }
 
 const MeetingActions: React.FC = () => {
@@ -152,6 +164,10 @@ const MeetingActions: React.FC = () => {
         forceCompany: true,
         dealId: meetingDetails.dealId,
         internalNotes: meetingDetails.internalNotes,
+        companies: meetingDetails.companies,
+        deals: meetingDetails.deals,
+        companyCount: meetingDetails.companyCount,
+        dealCount: meetingDetails.dealCount,
       }
     });
   };
@@ -245,8 +261,34 @@ const MeetingActions: React.FC = () => {
           <h2 className="text-xl font-semibold mb-2">{meetingDetails.title}</h2>
           <div className="py-2">
             <p className="text-sm text-gray-500">Company</p>
-            <p className="font-medium">{meetingDetails.companyName}</p>
+            {meetingDetails.companies && meetingDetails.companies.length > 1 ? (
+              <Popover>
+                <PopoverTrigger className="font-medium text-allo-primary hover:underline cursor-pointer">
+                  Multiple Companies ({meetingDetails.companyCount})
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2">
+                  <div className="space-y-2">
+                    {meetingDetails.companies?.map((company: { id: string; name: string }) => (
+                      <a
+                        key={company.id}
+                        href={`https://app.hubspot.com/contacts/48291892/company/${company.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-2 hover:bg-gray-100 rounded-md"
+                      >
+                        {company.name}
+                      </a>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <p className="font-medium">
+                {meetingDetails.companyName}
+              </p>
+            )}
           </div>
+
           {/* Removed MapPin from here as it was not imported if address is not meant to be a map link */}
           <div className="py-2 flex flex-col items-center">
             <p className="text-sm text-gray-500 text-center">Address</p>
@@ -258,15 +300,16 @@ const MeetingActions: React.FC = () => {
               <span>{meetingDetails.address}</span>
             </button>
           </div>
+
           <div className="py-2">
             <p className="text-sm text-gray-500">Contact</p>
             <p className="font-medium">{meetingDetails.contactName}</p>
           </div>
+
           <div className="py-2">
             <p className="text-sm text-gray-500">Phone Number</p>
             <p className="font-medium">{meetingDetails.contactPhone}</p>
           </div>
-
 
           {/* Deal ID Section */}
           <div className={`py-2 ${isMobile ? 'text-center' : ''}`}>
@@ -274,19 +317,44 @@ const MeetingActions: React.FC = () => {
             <p className={`text-xs text-gray-400 italic ${isMobile ? 'text-center' : ''} mb-1 whitespace-nowrap`}>
               Click to add contract notes
             </p>
-            {meetingDetails.dealId ? (
-              <a
-                href={`https://app.hubspot.com/contacts/48291892/deal/${meetingDetails.dealId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`font-medium font-mono text-allo-primary hover:text-allo-primary/80 flex items-center gap-1 group ${isMobile ? 'justify-center' : ''}`}
-              >
-                <span>#{meetingDetails.dealId}</span>
-                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
-            ) : (
-              <p className={`font-medium text-gray-400 ${isMobile ? 'text-center' : ''}`}>No deal associated</p>
-            )}
+            <div className="flex items-center gap-2 justify-center">
+              {meetingDetails.deals && meetingDetails.deals.length > 1 ? (
+                <Popover>
+                  <PopoverTrigger className="font-medium text-allo-primary hover:underline cursor-pointer">
+                    Multiple Deals ({meetingDetails.dealCount})
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2">
+                    <div className="space-y-2">
+                      {meetingDetails.deals?.map((deal: { id: string; name: string }) => (
+                        <a
+                          key={deal.id}
+                          href={`https://app.hubspot.com/contacts/48291892/deal/${deal.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block p-2 hover:bg-gray-100 rounded-md font-mono"
+                        >
+                          #{deal.id}
+                        </a>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                meetingDetails.dealId ? (
+                  <a
+                    href={`https://app.hubspot.com/contacts/48291892/deal/${meetingDetails.dealId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`font-medium font-mono text-allo-primary hover:text-allo-primary/80 flex items-center gap-1 group ${isMobile ? 'justify-center' : ''}`}
+                  >
+                    <span>#{meetingDetails.dealId}</span>
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                ) : (
+                  <p className={`font-medium text-gray-400 ${isMobile ? 'text-center' : ''}`}>No deal associated</p>
+                )
+              )}
+            </div>
           </div>
 
           {/* 🔥 Internal Notes Section */}
@@ -298,6 +366,7 @@ const MeetingActions: React.FC = () => {
               <p className="font-medium text-gray-400">No internal notes available</p>
             )}
           </div>
+
           <div className={`mt-6 ${isMobile ? 'flex flex-col space-y-3' : 'grid grid-cols-3 gap-3'}`}>
             <Button
               className="flex items-center justify-center py-2 bg-red-600 hover:bg-red-700 text-white"

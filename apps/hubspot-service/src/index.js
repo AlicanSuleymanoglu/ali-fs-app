@@ -318,22 +318,31 @@ app.post('/api/meetings', async (req, res) => {
     const allContactAssociations = contactAssociations.flatMap(r => r.data.results);
     const allDealAssociations = dealAssociations.flatMap(r => r.data.results);
 
-    const meetingToCompanyMap = new Map(
-      allCompanyAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
-    );
-    const meetingToContactMap = new Map(
-      allContactAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
-    );
-    const meetingToDealMap = new Map(
-      allDealAssociations.map(r => [r.from.id, r.to?.[0]?.toObjectId || null])
-    );
+    // Map meetingId -> array of companyIds
+    const meetingToCompanyIds = new Map();
+    allCompanyAssociations.forEach(r => {
+      if (!meetingToCompanyIds.has(r.from.id)) meetingToCompanyIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToCompanyIds.get(r.from.id).push(t.toObjectId));
+    });
+    // Map meetingId -> array of dealIds
+    const meetingToDealIds = new Map();
+    allDealAssociations.forEach(r => {
+      if (!meetingToDealIds.has(r.from.id)) meetingToDealIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToDealIds.get(r.from.id).push(t.toObjectId));
+    });
+    // Map meetingId -> array of contactIds (not used for MULTIPLE, but keep for completeness)
+    const meetingToContactIds = new Map();
+    allContactAssociations.forEach(r => {
+      if (!meetingToContactIds.has(r.from.id)) meetingToContactIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToContactIds.get(r.from.id).push(t.toObjectId));
+    });
 
     const companyIds = [...new Set(allCompanyAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+    const dealIds = [...new Set(allDealAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
     const contactIds = [...new Set(allContactAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
 
-    console.log(`🔍 Fetching ${companyIds.length} company details and ${contactIds.length} contact details`);
-
-    const [companyDetails, contactDetails] = await Promise.all([
+    // Fetch company and deal details
+    const [companyDetails, dealDetails, contactDetails] = await Promise.all([
       companyIds.length > 0 ? axios.post(
         'https://api.hubapi.com/crm/v3/objects/companies/batch/read',
         {
@@ -345,7 +354,17 @@ app.post('/api/meetings', async (req, res) => {
         console.error("❌ Company detail fetch error", err.response?.data || err.message);
         return { data: { results: [] } };
       }) : { data: { results: [] } },
-
+      dealIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/deals/batch/read',
+        {
+          properties: ['dealname'],
+          inputs: dealIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(err => {
+        console.error("❌ Deal detail fetch error", err.response?.data || err.message);
+        return { data: { results: [] } };
+      }) : { data: { results: [] } },
       contactIds.length > 0 ? axios.post(
         'https://api.hubapi.com/crm/v3/objects/contacts/batch/read',
         {
@@ -359,13 +378,18 @@ app.post('/api/meetings', async (req, res) => {
       }) : { data: { results: [] } }
     ]);
 
-    console.log('📦 Raw company detail response:', JSON.stringify(companyDetails.data, null, 2));
-    console.log('📦 Raw contact detail response:', JSON.stringify(contactDetails.data, null, 2));
-
+    // Build lookup maps
     const companyMap = new Map(
       companyDetails.data.results.map(c => [c.id, {
+        id: c.id,
         name: c.properties.name || 'Unnamed Company',
         address: [c.properties.address, c.properties.city].filter(Boolean).join(', ') || 'Unknown Address'
+      }])
+    );
+    const dealMap = new Map(
+      dealDetails.data.results.map(d => [d.id, {
+        id: d.id,
+        name: d.properties.dealname || 'Unnamed Deal'
       }])
     );
     const contactMap = new Map(
@@ -377,19 +401,18 @@ app.post('/api/meetings', async (req, res) => {
 
     const meetingsWithDetails = meetings.map(meeting => {
       const { id, properties } = meeting;
-      const companyId = meetingToCompanyMap.get(id);
-      const contactId = meetingToContactMap.get(id);
-      const dealId = meetingToDealMap.get(id);
+      const companyIds = meetingToCompanyIds.get(id) || [];
+      const dealIds = meetingToDealIds.get(id) || [];
+      const contactIds = meetingToContactIds.get(id) || [];
 
-      const company = companyMap.get(String(companyId));
-      const contact = contactMap.get(String(contactId));
+      const companies = companyIds.map(cid => companyMap.get(String(cid))).filter(Boolean);
+      const deals = dealIds.map(did => dealMap.get(String(did))).filter(Boolean);
+      const contacts = contactIds.map(cid => contactMap.get(String(cid))).filter(Boolean);
 
-      if (!company && companyId) {
-        console.warn(`⚠️ Missing company for ID ${companyId}`);
-      }
-      if (!contact && contactId) {
-        console.warn(`⚠️ Missing contact for ID ${contactId}`);
-      }
+      // For backward compatibility, keep single companyName, companyAddress, dealId, etc.
+      const company = companies[0];
+      const deal = deals[0];
+      const contact = contacts[0];
 
       return {
         id,
@@ -400,14 +423,18 @@ app.post('/api/meetings', async (req, res) => {
         address: properties.hs_meeting_location || '',
         companyAddress: company?.address || 'Unknown Address',
         companyName: company?.name || 'Unknown Company',
-        companyId: companyId || null,
+        companyId: company?.id || null,
         contactName: contact?.name || 'Unknown Contact',
         contactPhone: contact?.phone || '',
-        contactId: contactId || null,
-        dealId: dealId || null,
+        contactId: contactIds[0] || null,
+        dealId: deal?.id || null,
         internalNotes: properties.hs_internal_meeting_notes || '',
         status: properties.hs_meeting_outcome || 'scheduled',
-        type: properties.hs_activity_type || 'meeting'
+        type: properties.hs_activity_type || 'meeting',
+        companies, // array of all companies
+        deals,     // array of all deals
+        companyCount: companies.length,
+        dealCount: deals.length
       };
     });
 

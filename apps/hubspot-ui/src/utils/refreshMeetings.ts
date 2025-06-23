@@ -68,6 +68,10 @@ export const refreshMeetings = async (
                 contactId: item.contactId,
                 contactPhone: item.contactPhone,
                 internalNotes: cleanNotes,
+                companies: item.companies,
+                deals: item.deals,
+                companyCount: item.companyCount,
+                dealCount: item.dealCount,
             };
         });
 

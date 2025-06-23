@@ -138,11 +138,9 @@ const AddMeeting: React.FC = () => {
           await refreshMeetings(user.user_id, setMeetings);
         }
 
-        // Use the redirect URL from the response, or fallback to dashboard
-        if (location.state?.isFollowUp) {
-          navigate('/dashboard');
-          return;
-        }
+        // Always navigate to dashboard after rescheduling
+        navigate('/dashboard');
+        return;
       } catch (err) {
         console.error("❌ Meeting reschedule failed", err);
         toast.error("Failed to reschedule meeting");

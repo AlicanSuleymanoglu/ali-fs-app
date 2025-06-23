@@ -17,6 +17,10 @@ export interface Meeting {
     contactId?: string | number;
     contactPhone?: string;
     internalNotes?: string;
+    companies?: Array<{ id: string; name: string; address: string }>;
+    deals?: Array<{ id: string; name: string }>;
+    companyCount?: number;
+    dealCount?: number;
     // add other fields as needed
 }
 

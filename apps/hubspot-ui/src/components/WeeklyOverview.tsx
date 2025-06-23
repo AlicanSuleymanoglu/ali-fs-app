@@ -38,7 +38,6 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   const [weekOffset, setWeekOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const user = useUser();
-  const [calendarMeetings, setCalendarMeetings] = useState<Array<{ id: string; startTime: string; status: string }>>([]);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   // Add debug logging for meetings prop changes
@@ -50,37 +49,6 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   useEffect(() => {
     console.log('Context meetings updated:', contextMeetings.length);
   }, [contextMeetings]);
-
-  // Fetch light mode meetings for calendar dots
-  useEffect(() => {
-    const fetchCalendarMeetings = async () => {
-      if (!user?.user_id) return;
-
-      try {
-        const res = await fetch(`${BASE_URL}/api/meetings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            ownerId: user.user_id,
-            lightMode: true,
-            forceRefresh: false
-          })
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch calendar meetings');
-        }
-
-        const data = await res.json();
-        setCalendarMeetings(data.results);
-      } catch (err) {
-        console.error("Failed to fetch calendar meetings:", err);
-      }
-    };
-
-    fetchCalendarMeetings();
-  }, [user?.user_id]);
 
   const displayedWeek = useMemo(() => {
     let baseDate = currentDate;
@@ -98,8 +66,9 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   }, [displayedWeek]);
 
   const getMeetingsForDay = (date: Date) => {
-    // Use calendarMeetings for dots, but filter out canceled meetings
-    const dayMeetings = calendarMeetings.filter(meeting => {
+    // Use meetings from props or context, and filter out canceled meetings
+    const allMeetings = meetings.length > 0 ? meetings : contextMeetings;
+    const dayMeetings = allMeetings.filter(meeting => {
       const meetingDate = new Date(meeting.startTime);
       return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
     });

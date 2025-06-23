@@ -142,7 +142,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             companyId: item.companyId,
             contactId: item.contactId,
             contactPhone: item.contactPhone,
-            internalNotes: cleanNotes
+            internalNotes: cleanNotes,
+            companies: item.companies,
+            deals: item.deals,
+            companyCount: item.companyCount,
+            dealCount: item.dealCount,
           };
         });
 

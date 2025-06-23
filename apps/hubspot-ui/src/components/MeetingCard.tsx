@@ -7,7 +7,6 @@ import { cn } from "../lib/utils.ts";
 import { useIsMobile } from "../hooks/use-mobile.tsx";
 
 export interface Meeting {
-  ownerId: string;
   id: string;
   title: string;
   contactName: string;
@@ -15,16 +14,19 @@ export interface Meeting {
   startTime: string;
   endTime: string;
   date: string;
-  type?: 'Sales Meeting' | 'Sales Followup';
-  status?: 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'RESCHEDULED';
+  type: string;
+  status: string;
   address?: string;
   companyAddress?: string;
-  dealId?: string | number | null;
-  onSelect?: (meeting: Meeting) => void;
-  companyId?: string | number | null;
-  contactId?: string | number | null;
-  completed?: boolean;
+  dealId?: string;
+  companyId?: string;
+  contactId?: string;
+  contactPhone?: string;
   internalNotes?: string;
+  companies?: Array<{ id: string; name: string; }>;
+  deals?: Array<{ id: string; name: string; }>;
+  companyCount?: number;
+  dealCount?: number;
 }
 
 interface MeetingCardProps {
