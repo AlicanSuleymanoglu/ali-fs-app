@@ -41,7 +41,7 @@ const ContractSuccess: React.FC = () => {
           className="w-full md:w-auto px-6 py-2 flex items-center justify-center gap-2"
         >
           <Home className="w-4 h-4" />
-          Homepage
+          {location.state?.completedDeals ? "Back to Deals" : "Homepage"}
         </Button>
       </motion.div>
     </div>

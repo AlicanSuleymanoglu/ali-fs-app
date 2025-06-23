@@ -68,7 +68,7 @@ const FollowUpOptions: React.FC = () => {
                 companyAddress: meetingDetails.address,
                 contactId: meetingDetails.contactId,
                 contactName: meetingDetails.contactName,
-                dealId: meetingDetails.dealId,
+                dealId: location.state?.dealId || meetingDetails.dealId,
                 forceCompany: true,
                 meetingType: meetingDetails.type,
                 isHotDeal: isHotDeal,

@@ -189,7 +189,12 @@ const PositiveOutcome: React.FC = () => {
         });
       } else {
         // Single deal: go to dashboard
-        navigate('/contract-success');
+        navigate('/contract-success', {
+          state: {
+            meetingId: id,
+            completedDeals: location.state?.completedDeals
+          }
+        });
       }
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
