@@ -47,6 +47,7 @@ interface Meeting {
   internalNotes?: string;
   startTime?: string;
   type?: string;
+  dealstage?: string;
 }
 
 const MeetingActions: React.FC = () => {
@@ -63,6 +64,9 @@ const MeetingActions: React.FC = () => {
   const ownerId = user?.user_id;
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showDealClosedDialog, setShowDealClosedDialog] = useState(false);
+  const [dealClosedUrl, setDealClosedUrl] = useState<string | null>(null);
+  const [dealClosedStage, setDealClosedStage] = useState<string | null>(null);
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
@@ -131,7 +135,7 @@ const MeetingActions: React.FC = () => {
   const handleComplete = () => {
     const missing = [];
     if (!meetingDetails.companyId) missing.push('Company');
-    if (!meetingDetails.dealId) missing.push('Deal');
+    if (!meetingDetails.dealId && (!meetingDetails.deals || meetingDetails.deals.length === 0)) missing.push('Deal');
     if (!meetingDetails.contactId) missing.push('Contact');
 
     if (missing.length > 0) {
@@ -140,10 +144,32 @@ const MeetingActions: React.FC = () => {
       return;
     }
 
-    // If all required fields are present, proceed with navigation
+    // If multiple deals, go to deal selector
+    if (meetingDetails.deals && meetingDetails.deals.length > 1) {
+      navigate(`/meeting/${id}/outcome`);
+      return;
+    }
+
+    // If only one deal, check if it's closedwon/closedlost
+    let singleDeal = null;
+    if (meetingDetails.deals && meetingDetails.deals.length === 1) {
+      singleDeal = meetingDetails.deals[0];
+    } else if (meetingDetails.dealId) {
+      singleDeal = { id: meetingDetails.dealId, dealstage: meetingDetails.dealstage };
+    }
+    // If we have dealstage info and it's closedwon/closedlost, show disclaimer
+    if (singleDeal && (singleDeal.dealstage === 'closedwon' || singleDeal.dealstage === 'closedlost')) {
+      setDealClosedUrl(`https://app.hubspot.com/contacts/48291892/deal/${singleDeal.id}`);
+      setDealClosedStage(singleDeal.dealstage === 'closedwon' ? 'Closed Won' : 'Closed Lost');
+      setShowDealClosedDialog(true);
+      return;
+    }
+
+    // If all required fields are present, proceed with navigation for single deal
     navigate(`/meeting/${id}/outcome`, {
       state: {
         dealId: meetingDetails.dealId,
+        dealName: meetingDetails.deals && meetingDetails.deals.length === 1 ? meetingDetails.deals[0].name : undefined,
       }
     });
   };
@@ -469,6 +495,53 @@ const MeetingActions: React.FC = () => {
             <AlertDialogCancel className={cn(buttonVariants({ variant: 'outline', size: 'default' }), "w-full")}>
               Close
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deal Closed Disclaimer Dialog */}
+      <AlertDialog open={showDealClosedDialog} onOpenChange={setShowDealClosedDialog}>
+        <AlertDialogContent className="max-w-[350px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="text-destructive mr-2 h-5 w-5" />
+              Deal Already Closed
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {dealClosedStage && (
+                <span>
+                  This deal is already marked as <span className="font-semibold">{dealClosedStage}</span> in HubSpot.<br />
+                  Please review the deal in HubSpot before proceeding.
+                </span>
+              )}
+              {dealClosedUrl && (
+                <a
+                  href={dealClosedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline mt-2 inline-block"
+                >
+                  View Deal in HubSpot
+                </a>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDealClosedDialog(false);
+                navigate(`/meeting/${id}/outcome`, {
+                  state: {
+                    dealId: meetingDetails.dealId,
+                    dealName: meetingDetails.deals && meetingDetails.deals.length === 1 ? meetingDetails.deals[0].name : undefined,
+                  }
+                });
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Continue Anyway
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

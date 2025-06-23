@@ -96,7 +96,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
               <Input
                 id="other-reason"
                 value={otherReason}
-                onChange={(e) => setOtherReason(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtherReason(e.currentTarget.value)}
                 placeholder="Please specify"
                 disabled={loading}
               />

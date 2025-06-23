@@ -21,6 +21,7 @@ export interface Meeting {
     deals?: Array<{ id: string; name: string }>;
     companyCount?: number;
     dealCount?: number;
+    dealStage?: string;
     // add other fields as needed
 }
 

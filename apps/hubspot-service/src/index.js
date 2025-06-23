@@ -357,7 +357,7 @@ app.post('/api/meetings', async (req, res) => {
       dealIds.length > 0 ? axios.post(
         'https://api.hubapi.com/crm/v3/objects/deals/batch/read',
         {
-          properties: ['dealname'],
+          properties: ['dealname', 'dealstage'],
           inputs: dealIds.map(id => ({ id: String(id) }))
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -389,7 +389,8 @@ app.post('/api/meetings', async (req, res) => {
     const dealMap = new Map(
       dealDetails.data.results.map(d => [d.id, {
         id: d.id,
-        name: d.properties.dealname || 'Unnamed Deal'
+        name: d.properties.dealname || 'Unnamed Deal',
+        dealstage: d.properties.dealstage || null
       }])
     );
     const contactMap = new Map(
@@ -1165,7 +1166,7 @@ app.get('/api/hubspot/company/:companyId/deals', async (req, res) => {
 
     const dealDetails = await hubspotClient.crm.deals.batchApi.read({
       inputs: dealIds.map(id => ({ id })),
-      properties: ['dealname', 'dealstage', 'pipeline'],
+      properties: ['dealname', 'dealstage', 'pipeline', 'amount'],
     });
 
     const salesPipelineDeals = dealDetails.results.filter(

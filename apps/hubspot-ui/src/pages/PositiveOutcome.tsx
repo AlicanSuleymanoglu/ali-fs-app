@@ -178,7 +178,19 @@ const PositiveOutcome: React.FC = () => {
       }
 
       toast.success("Meeting marked as positive outcome and completed!");
-      navigate('/contract-success');
+      if (location.state?.completedDeals) {
+        // Multi-deal flow: go back to selector
+        navigate(`/meeting/${id}/outcome`, {
+          state: {
+            completedDealId: dealId,
+            completedDealStatus: 'closed-won',
+            completedDeals: location.state.completedDeals
+          }
+        });
+      } else {
+        // Single deal: go to dashboard
+        navigate('/contract-success');
+      }
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
@@ -190,7 +202,17 @@ const PositiveOutcome: React.FC = () => {
           console.error("Error refreshing meetings:", refreshErr);
         }
       }
-      navigate('/contract-success');
+      if (location.state?.completedDeals) {
+        navigate(`/meeting/${id}/outcome`, {
+          state: {
+            completedDealId: dealId,
+            completedDealStatus: 'closed-won',
+            completedDeals: location.state.completedDeals
+          }
+        });
+      } else {
+        navigate('/contract-success');
+      }
     }
   };
 

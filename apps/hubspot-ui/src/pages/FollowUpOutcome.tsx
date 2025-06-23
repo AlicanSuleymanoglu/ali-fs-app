@@ -132,14 +132,27 @@ const FollowUpOutcome: React.FC = () => {
 
   // If we're coming back from the options page, don't show the recorder
   if (location.state?.isVoiceNoteSent) {
-    navigate(`/meeting/${id}/follow-up-options`, {
-      state: {
-        isHotDeal,
-        dealId,
-        isVoiceNoteSent: true
-      }
-    });
-    return null;
+    if (location.state?.completedDeals) {
+      // Multi-deal flow: go back to selector
+      navigate(`/meeting/${id}/outcome`, {
+        state: {
+          completedDealId: location.state.dealId,
+          completedDealStatus: 'followup',
+          completedDeals: location.state.completedDeals
+        }
+      });
+      return null;
+    } else {
+      // Single deal: go to follow-up options as before
+      navigate(`/meeting/${id}/follow-up-options`, {
+        state: {
+          isHotDeal,
+          dealId,
+          isVoiceNoteSent: true
+        }
+      });
+      return null;
+    }
   }
 
   return (
