@@ -147,7 +147,7 @@ const NegativeOutcome: React.FC = () => {
         });
       } else {
         // Single deal: go to dashboard
-        navigate(`/dashboard`);
+        navigate('/dashboard');
       }
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
@@ -169,7 +169,12 @@ const NegativeOutcome: React.FC = () => {
           }
         });
       } else {
-        navigate(`/dashboard`);
+        navigate('/dashboard', {
+          state: {
+            meetingId: id,
+            completedDeals: location.state?.completedDeals
+          }
+        });
       }
     }
   };
