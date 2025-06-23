@@ -33,6 +33,8 @@ const FollowUpOptions: React.FC = () => {
         return null;
     }
 
+    const targetDealId = location.state?.dealId || meetingDetails.dealId;
+
     const checkCompanyName = () => {
         if (!meetingDetails.companyName || meetingDetails.companyName.toLowerCase() === 'unknown') {
             toast.error("Unknown Company", {
@@ -50,7 +52,7 @@ const FollowUpOptions: React.FC = () => {
 
         // Update deal stage to 'in-negotiation'
         try {
-            await fetch(`${BASE_URL}/api/deal/${meetingDetails.dealId}/in-negotiation`, {
+            await fetch(`${BASE_URL}/api/deal/${targetDealId}/in-negotiation`, {
                 method: 'PATCH',
                 credentials: 'include',
             });
@@ -147,7 +149,7 @@ const FollowUpOptions: React.FC = () => {
 
             if (!res.ok) throw new Error("Failed to create task");
 
-            await fetch(`${BASE_URL}/api/deal/${meetingDetails.dealId}/in-negotiation`, {
+            await fetch(`${BASE_URL}/api/deal/${targetDealId}/in-negotiation`, {
                 method: 'PATCH',
                 credentials: 'include',
             });
