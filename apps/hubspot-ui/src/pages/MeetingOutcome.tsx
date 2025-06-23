@@ -44,7 +44,8 @@ const MeetingOutcome: React.FC = () => {
         state: {
           dealId: currentDealId,
           remainingDeals,
-          dealName
+          dealName,
+          completedDeals: location.state?.completedDeals
         }
       });
     } else if (outcome === 'negative') {
@@ -86,7 +87,8 @@ const MeetingOutcome: React.FC = () => {
         isHotDeal,
         dealId: currentDealId,
         remainingDeals,
-        dealName
+        dealName,
+        completedDeals: location.state?.completedDeals
       }
     });
   };

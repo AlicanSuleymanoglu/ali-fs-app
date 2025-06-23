@@ -23,7 +23,7 @@ const PositiveOutcome: React.FC = () => {
   const { meetings, setMeetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
-  const ownerId = meetingDetails?.ownerId || user?.user_id;
+  const ownerId = user?.user_id;
   const contextDealId = meetings.find(m => m.id === id)?.dealId;
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
@@ -178,24 +178,13 @@ const PositiveOutcome: React.FC = () => {
       }
 
       toast.success("Meeting marked as positive outcome and completed!");
-      if (location.state?.completedDeals) {
-        // Multi-deal flow: go back to selector
-        navigate(`/meeting/${id}/outcome`, {
-          state: {
-            completedDealId: dealId,
-            completedDealStatus: 'closed-won',
-            completedDeals: location.state.completedDeals
-          }
-        });
-      } else {
-        // Single deal: go to dashboard
-        navigate('/contract-success', {
-          state: {
-            meetingId: id,
-            completedDeals: location.state?.completedDeals
-          }
-        });
-      }
+      // Always go to contract success, passing meetingId and completedDeals
+      navigate('/contract-success', {
+        state: {
+          meetingId: id,
+          completedDeals: location.state?.completedDeals
+        }
+      });
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
@@ -207,17 +196,13 @@ const PositiveOutcome: React.FC = () => {
           console.error("Error refreshing meetings:", refreshErr);
         }
       }
-      if (location.state?.completedDeals) {
-        navigate(`/meeting/${id}/outcome`, {
-          state: {
-            completedDealId: dealId,
-            completedDealStatus: 'closed-won',
-            completedDeals: location.state.completedDeals
-          }
-        });
-      } else {
-        navigate('/contract-success');
-      }
+      // In the catch block as well
+      navigate('/contract-success', {
+        state: {
+          meetingId: id,
+          completedDeals: location.state?.completedDeals
+        }
+      });
     }
   };
 
@@ -260,7 +245,7 @@ const PositiveOutcome: React.FC = () => {
                   className="w-full p-2 border border-gray-300 rounded"
                   rows={3}
                   value={additionalNotes}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdditionalNotes(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdditionalNotes(e.currentTarget.value)}
                   placeholder="Add any relevant comments for the note…"
                 />
               </div>
@@ -317,7 +302,7 @@ const PositiveOutcome: React.FC = () => {
                   <Textarea
                     placeholder="Enter your note here..."
                     value={textInput}
-                    onChange={(e) => setTextInput(e.currentTarget.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTextInput(e.currentTarget.value)}
                     className="min-h-[150px]"
                   />
                   <Button
