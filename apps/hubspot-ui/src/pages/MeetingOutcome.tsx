@@ -93,7 +93,7 @@ const MeetingOutcome: React.FC = () => {
   const handleBack = () => {
     if (currentDealId) {
       // If in multi-deal flow, go back to deal selector
-      navigate(`/meeting/${id}`, {
+      navigate(`/meeting/${id}/outcome`, {
         state: {
           completedDeals: location.state?.completedDeals || []
         }
