@@ -286,11 +286,11 @@ const MeetingActions: React.FC = () => {
         <div className="allo-card w-full max-w-md mx-auto">
           <h2 className="text-xl font-semibold mb-2">{meetingDetails.title}</h2>
           <div className="py-2">
-            <p className="text-sm text-gray-500">Company</p>
+            <p className="text-sm text-gray-500">Restaurant</p>
             {meetingDetails.companies && meetingDetails.companies.length > 1 ? (
               <Popover>
                 <PopoverTrigger className="font-medium text-allo-primary hover:underline cursor-pointer">
-                  Multiple Companies ({meetingDetails.companyCount})
+                  Multiple Restaurants ({meetingDetails.companyCount})
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-2">
                   <div className="space-y-2">

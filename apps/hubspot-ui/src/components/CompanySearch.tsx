@@ -393,11 +393,11 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
 
   return (
     <div className="space-y-2 relative">
-      <Label htmlFor="company-search">Company Name {required && <span className="text-red-500">*</span>}</Label>
+      <Label htmlFor="company-search">Restaurant Name {required && <span className="text-red-500">*</span>}</Label>
       <div className="relative">
         <Input
           id="company-search"
-          placeholder="Search companies..."
+          placeholder="Search restaurants..."
           value={searchTerm}
           onChange={handleInputChange}
           className="pl-9"
