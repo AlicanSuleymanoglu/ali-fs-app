@@ -9,9 +9,10 @@ import { toast } from "sonner";
 interface ClosedWonReasonFormProps {
   dealId: string; // Make sure you pass the correct dealId!
   onComplete: () => void;
+  completing?: boolean;
 }
 
-const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onComplete }) => {
+const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onComplete, completing }) => {
   const [reason, setReason] = useState<string>("");
   const [posCompetitor, setPosCompetitor] = useState<string>("");
   const [paymentCompetitor, setPaymentCompetitor] = useState<string>("");
@@ -70,7 +71,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
             <Select
               onValueChange={setReason}
               value={reason}
-              disabled={loading}
+              disabled={loading || completing}
             >
               <SelectTrigger id="closed-won-reason">
                 <SelectValue placeholder="Select a reason" />
@@ -94,7 +95,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
             <Select
               onValueChange={setPosCompetitor}
               value={posCompetitor}
-              disabled={loading}
+              disabled={loading || completing}
             >
               <SelectTrigger id="pos-competitor">
                 <SelectValue placeholder="Select a POS competitor" />
@@ -131,7 +132,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
             <Select
               onValueChange={setPaymentCompetitor}
               value={paymentCompetitor}
-              disabled={loading}
+              disabled={loading || completing}
             >
               <SelectTrigger id="payment-competitor">
                 <SelectValue placeholder="Select a payment competitor" />
@@ -172,8 +173,8 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
           </div>
         </div>
         <div className="flex justify-end pt-4">
-          <Button type="submit" className="allo-button" disabled={loading}>
-            {loading ? "Submitting..." : "Submit"}
+          <Button type="submit" className="allo-button" disabled={loading || completing}>
+            {(loading || completing) ? "Submitting..." : "Submit"}
           </Button>
         </div>
       </form>

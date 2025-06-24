@@ -38,6 +38,7 @@ const PositiveOutcome: React.FC = () => {
   const [inputMethod, setInputMethod] = useState<'audio' | 'text'>('audio');
   const [textInput, setTextInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     if (!dealId && id) {
@@ -165,20 +166,17 @@ const PositiveOutcome: React.FC = () => {
   };
 
   const handleComplete = async () => {
+    setCompleting(true);
     try {
       const response = await fetch(`${BASE_URL}/api/meeting/${id}/mark-completed`, {
         method: "POST",
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to mark meeting as completed");
-
-      // Refresh meetings once at the end of the flow
       if (user?.user_id) {
         await refreshMeetings(user.user_id, setMeetings);
       }
-
       toast.success("Meeting marked as positive outcome and completed!");
-      // Always go to contract success, passing meetingId and completedDeals
       navigate('/contract-success', {
         state: {
           meetingId: id,
@@ -188,7 +186,6 @@ const PositiveOutcome: React.FC = () => {
     } catch (err) {
       toast.error("Failed to mark meeting as completed");
       console.error("Error marking meeting as completed:", err);
-      // Still try to refresh meetings even if marking as completed failed
       if (user?.user_id) {
         try {
           await refreshMeetings(user.user_id, setMeetings);
@@ -196,7 +193,6 @@ const PositiveOutcome: React.FC = () => {
           console.error("Error refreshing meetings:", refreshErr);
         }
       }
-      // In the catch block as well
       navigate('/contract-success', {
         state: {
           meetingId: id,
@@ -330,6 +326,7 @@ const PositiveOutcome: React.FC = () => {
             <ClosedWonReasonForm
               dealId={dealId}
               onComplete={handleComplete}
+              completing={completing}
             />
           )}
 
@@ -340,6 +337,17 @@ const PositiveOutcome: React.FC = () => {
           )}
         </div>
       </div>
+      {completing && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow flex items-center gap-2">
+            <svg className="animate-spin h-5 w-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Completing...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
