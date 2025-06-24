@@ -60,8 +60,10 @@ const FollowUpOptions: React.FC = () => {
             console.error("Failed to update deal stage to 'in-negotiation':", err);
         }
 
+        // Pass all relevant state to AddMeeting
         navigate('/add-meeting', {
             state: {
+                ...location.state,
                 isFollowUp: true,
                 originalMeetingId: meetingDetails.id,
                 meetingId: id,
@@ -178,11 +180,14 @@ const FollowUpOptions: React.FC = () => {
                         ...location.state.completedDeals,
                         [location.state.dealId]: 'followup'
                     };
+                    // Save to sessionStorage
+                    const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+                    sessionStorage.setItem('completedDeals', JSON.stringify({ ...sessionCompleted, ...updatedCompletedDeals }));
+                    // Go back to DealSelector
                     navigate(`/meeting/${id}/outcome`, {
                         state: {
                             completedDeals: updatedCompletedDeals,
-                            completedDealId: location.state.dealId,
-                            completedDealStatus: 'followup'
+                            meetingId: id
                         }
                     });
                 } else {

@@ -78,6 +78,7 @@ const FollowUpOutcome: React.FC = () => {
       // Navigate to the follow-up options page after successful recording
       navigate(`/meeting/${id}/follow-up-options`, {
         state: {
+          ...location.state,
           isHotDeal,
           dealId,
           isVoiceNoteSent: true
@@ -117,6 +118,7 @@ const FollowUpOutcome: React.FC = () => {
       // Navigate to the follow-up options page after successful note
       navigate(`/meeting/${id}/follow-up-options`, {
         state: {
+          ...location.state,
           isHotDeal,
           dealId,
           isVoiceNoteSent: true
@@ -146,6 +148,7 @@ const FollowUpOutcome: React.FC = () => {
       // Single deal: go to follow-up options as before
       navigate(`/meeting/${id}/follow-up-options`, {
         state: {
+          ...location.state,
           isHotDeal,
           dealId,
           isVoiceNoteSent: true

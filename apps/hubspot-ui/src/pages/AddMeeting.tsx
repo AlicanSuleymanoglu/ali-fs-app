@@ -204,11 +204,13 @@ const AddMeeting: React.FC = () => {
             ...location.state.completedDeals,
             [location.state.dealId]: 'followup'
           };
+          // Save to sessionStorage
+          const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+          sessionStorage.setItem('completedDeals', JSON.stringify({ ...sessionCompleted, ...updatedCompletedDeals }));
           navigate(`/meeting/${location.state.meetingId}/outcome`, {
             state: {
               completedDeals: updatedCompletedDeals,
-              completedDealId: location.state.dealId,
-              completedDealStatus: 'followup'
+              meetingId: location.state.meetingId
             }
           });
         } else {
@@ -253,11 +255,13 @@ const AddMeeting: React.FC = () => {
   // Fixing linter errors
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStartTime(e.currentTarget.value);
+    // @ts-ignore
+    setStartTime(e.target.value);
   };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNotes(e.currentTarget.value);
+    // @ts-ignore
+    setNotes(e.target.value);
   };
 
   // UI logic
