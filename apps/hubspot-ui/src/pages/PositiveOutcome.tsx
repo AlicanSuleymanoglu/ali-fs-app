@@ -177,10 +177,18 @@ const PositiveOutcome: React.FC = () => {
         await refreshMeetings(user.user_id, setMeetings);
       }
       toast.success("Meeting marked as positive outcome and completed!");
+      // Save completed deal to sessionStorage
+      if (dealId) {
+        const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+        sessionCompleted[dealId] = 'closed-won';
+        sessionStorage.setItem('completedDeals', JSON.stringify(sessionCompleted));
+      }
       navigate('/contract-success', {
         state: {
           meetingId: id,
-          completedDeals: location.state?.completedDeals
+          completedDeals: location.state?.completedDeals,
+          completedDealId: dealId,
+          completedDealStatus: 'closed-won',
         }
       });
     } catch (err) {
@@ -193,13 +201,22 @@ const PositiveOutcome: React.FC = () => {
           console.error("Error refreshing meetings:", refreshErr);
         }
       }
+      // Save completed deal to sessionStorage even on error
+      if (dealId) {
+        const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+        sessionCompleted[dealId] = 'closed-won';
+        sessionStorage.setItem('completedDeals', JSON.stringify(sessionCompleted));
+      }
       navigate('/contract-success', {
         state: {
           meetingId: id,
-          completedDeals: location.state?.completedDeals
+          completedDeals: location.state?.completedDeals,
+          completedDealId: dealId,
+          completedDealStatus: 'closed-won',
         }
       });
     }
+    // Don't setCompleting(false) here, let it stay true until navigation
   };
 
   return (

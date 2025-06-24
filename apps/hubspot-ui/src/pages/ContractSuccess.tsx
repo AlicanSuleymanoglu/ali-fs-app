@@ -9,11 +9,19 @@ const ContractSuccess: React.FC = () => {
   const location = useLocation();
 
   const handleHome = () => {
+    // Save completed deal to sessionStorage if present
+    if (location.state?.completedDealId && location.state?.completedDealStatus) {
+      const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+      sessionCompleted[location.state.completedDealId] = location.state.completedDealStatus;
+      sessionStorage.setItem('completedDeals', JSON.stringify(sessionCompleted));
+    }
     if (location.state?.completedDeals && location.state?.meetingId) {
       // Multi-deal flow: go back to DealSelector
       navigate(`/meeting/${location.state.meetingId}/outcome`, {
         state: {
-          completedDeals: location.state.completedDeals
+          completedDeals: location.state.completedDeals,
+          completedDealId: location.state.completedDealId,
+          completedDealStatus: location.state.completedDealStatus,
         }
       });
     } else {

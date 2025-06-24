@@ -24,14 +24,19 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
     // Map of dealId -> status
     const [completedDeals, setCompletedDeals] = useState<Record<string, DealStatus>>({});
 
-    // Update completed deals when returning from outcome flow
+    // Update completed deals when returning from outcome flow or on mount
     useEffect(() => {
-        if (location.state?.completedDealId && location.state?.completedDealStatus) {
-            setCompletedDeals(prev => ({
-                ...prev,
-                [location.state.completedDealId]: location.state.completedDealStatus
-            }));
+        // Read from sessionStorage
+        const sessionCompleted = JSON.parse(sessionStorage.getItem('completedDeals') || '{}');
+        let merged = { ...sessionCompleted };
+        // Merge with navigation state if present
+        if (location.state?.completedDeals) {
+            merged = { ...merged, ...location.state.completedDeals };
         }
+        if (location.state?.completedDealId && location.state?.completedDealStatus) {
+            merged[location.state.completedDealId] = location.state.completedDealStatus;
+        }
+        setCompletedDeals(merged);
     }, [location.state]);
 
     const handleDealSelect = (deal: Deal) => {
@@ -101,40 +106,39 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                             const dealStage = getDealStageLabel(deal.dealstage);
                             const isDone = deal.dealstage === 'closedwon' || deal.dealstage === 'closedlost';
                             const doneBg = '';
+                            const isSessionCompleted = !!status;
                             return (
                                 <Button
                                     key={deal.id}
                                     onClick={() => handleDealSelect(deal)}
-                                    disabled={!!status}
                                     className={cn(
                                         "flex items-center justify-between py-4 px-3 text-left h-auto w-full text-base sm:text-lg transition-colors",
                                         "flex-wrap gap-y-2 sm:gap-y-0",
-                                        status ? "bg-gray-50 border-gray-200" : isDone ? doneBg : "bg-white hover:bg-gray-50 border"
+                                        isSessionCompleted ? "bg-green-50 border-green-200 ring-2 ring-green-200" : isDone ? doneBg : "bg-white hover:bg-gray-50 border"
                                     )}
                                     variant="outline"
                                 >
                                     <div className="flex flex-col min-w-0 max-w-full">
                                         <span className={cn(
                                             "font-medium break-words truncate max-w-full",
-                                            isDone && !status ? "text-gray-400" : ""
+                                            isDone && !isSessionCompleted ? "text-gray-400" : ""
                                         )}>{deal.name || 'Unnamed Deal'}</span>
                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                                             <span className="text-xs sm:text-sm text-gray-500 font-mono truncate">#{deal.id}</span>
                                             <span className={cn(
                                                 "text-xs px-2 py-0.5 rounded-full truncate",
                                                 dealStage.color,
-                                                isDone && !status ? "opacity-60" : ""
+                                                isDone && !isSessionCompleted ? "opacity-60" : ""
                                             )}>
                                                 {dealStage.label}
                                             </span>
+                                            {isSessionCompleted && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-green-200 text-green-800 text-xs font-semibold">
+                                                    <Check size={16} className="mr-1" /> Completed
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    {status && (
-                                        <div className="flex items-center text-green-600 flex-shrink-0">
-                                            <Check size={22} className="mr-1 sm:mr-2" />
-                                            <span className="text-xs sm:text-sm">{statusLabel(status)}</span>
-                                        </div>
-                                    )}
                                 </Button>
                             );
                         })}
