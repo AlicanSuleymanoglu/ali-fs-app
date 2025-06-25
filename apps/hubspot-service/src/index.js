@@ -791,6 +791,18 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
     }
   }
 
+  // Fetch companyId associated with the meeting
+  let companyId = null;
+  try {
+    const companyRes = await axios.get(
+      `https://api.hubapi.com/crm/v4/objects/meetings/${meetingId}/associations/companies`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    companyId = companyRes.data.results?.[0]?.toObjectId || null;
+  } catch (e) {
+    console.warn('No associated company found for this meeting or failed to fetch:', e.response?.data || e.message);
+  }
+
   try {
     // Prepare form-data for HubSpot file upload
     const fileFormData = new FormData();
@@ -823,7 +835,31 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
     let noteBody = "Paper Quote: <br>";
     if (additionalNote) noteBody += additionalNote;
 
-    // Create a note and associate with the deal
+    // Build associations array for note
+    const noteAssociations = [
+      {
+        to: { id: dealId },
+        types: [
+          {
+            associationCategory: "HUBSPOT_DEFINED",
+            associationTypeId: 214
+          }
+        ]
+      }
+    ];
+    if (companyId) {
+      noteAssociations.push({
+        to: { id: companyId },
+        types: [
+          {
+            associationCategory: "HUBSPOT_DEFINED",
+            associationTypeId: 190
+          }
+        ]
+      });
+    }
+
+    // Create a note and associate with the deal and company (if any)
     const noteRes = await axios.post(
       'https://api.hubapi.com/crm/v3/objects/notes',
       {
@@ -832,24 +868,14 @@ app.post('/api/meeting/:meetingId/upload-contract', upload_contract.single('cont
           hs_attachment_ids: fileId,
           hs_timestamp: Date.now()
         },
-        associations: [
-          {
-            to: { id: dealId },
-            types: [
-              {
-                associationCategory: "HUBSPOT_DEFINED",
-                associationTypeId: 214
-              }
-            ]
-          }
-        ]
+        associations: noteAssociations
       },
       {
         headers: { 'Authorization': `Bearer ${token}` }
       }
     );
 
-    res.json({ success: true, noteId: noteRes.data.id, fileId });
+    res.json({ success: true, noteId: noteRes.data.id, fileId, companyId });
   } catch (err) {
     console.error("❌ Failed to upload contract and create note:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to upload contract', details: err.response?.data || err.message });
