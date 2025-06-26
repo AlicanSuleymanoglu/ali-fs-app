@@ -41,8 +41,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
-  const [additionalCompanies, setAdditionalCompanies] = useState<CompanyWithDeal[]>([]);
-  const [showAddCompanySearch, setShowAddCompanySearch] = useState(false);
 
   const handleCreateMeeting = () => {
     setIsCreateMeetingDialogOpen(true);
@@ -60,10 +58,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
     const endDate = new Date(meetingDate);
     endDate.setHours(endDate.getHours() + 1);
 
-    const allCompanies = [selectedCompany, ...additionalCompanies];
-    const companyIds = allCompanies.map(c => c.id);
-    const dealIds = allCompanies.map(c => c.dealId || null);
-
     const payload = {
       title: meetingType,
       companyId: selectedCompany.id,
@@ -73,8 +67,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
       endTime: endDate.getTime(),
       notes,
       contactId: selectedCompany.contactId || null,
-      companyIds,
-      dealIds,
     };
 
     try {
@@ -97,25 +89,26 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
       toast.success(`Meeting scheduled successfully`);
 
+      // ✅ Use the isPastMeeting flag here
       if (newMeeting.isPastMeeting) {
         toast.success("Past meeting logged. Redirecting to outcome.");
         navigate(`/meeting/${newMeeting.meetingId}/outcome`);
         return;
       }
 
+      // Reset form state only after successful creation
       setIsCreateMeetingDialogOpen(false);
       setSelectedCompany(null);
       setMeetingType("Sales Meeting");
       setDate(undefined);
       setStartTime("");
       setNotes("");
-      setAdditionalCompanies([]);
-      setShowAddCompanySearch(false);
     } catch (err) {
       console.error("❌ Error creating meeting:", err);
       toast.error("Failed to schedule meeting");
     }
   };
+
 
   const generateTimeOptions = () => {
     const options = [];
@@ -165,6 +158,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
         </div>
       </div>
 
+      {/* Meeting Dialog */}
       <Dialog open={isCreateMeetingDialogOpen} onOpenChange={setIsCreateMeetingDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -173,46 +167,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <CompanySearch onSelect={setSelectedCompany} value={selectedCompany} required />
-            </div>
-
-            <div className="space-y-2">
-              {additionalCompanies.length > 0 && (
-                <ul className="space-y-1">
-                  {additionalCompanies.map((company, idx) => (
-                    <li key={company.id} className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-                      <span>{company.name}</span>
-                      <Button size="sm" variant="ghost" onClick={() => setAdditionalCompanies(prev => prev.filter((c, i) => i !== idx))}>
-                        Remove
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {showAddCompanySearch ? (
-                <div className="mt-2">
-                  <CompanySearch
-                    onSelect={company => {
-                      if (
-                        company.id === selectedCompany?.id ||
-                        additionalCompanies.some(c => c.id === company.id)
-                      ) {
-                        toast.error("This restaurant is already added.");
-                        return;
-                      }
-                      setAdditionalCompanies(prev => [...prev, company]);
-                      setShowAddCompanySearch(false);
-                    }}
-                    disableContactCheck
-                  />
-                  <Button size="sm" variant="ghost" className="mt-1" onClick={() => setShowAddCompanySearch(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" className="mt-2" onClick={() => setShowAddCompanySearch(true)}>
-                  + Add more restaurants
-                </Button>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -246,7 +200,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
                     onSelect={(selectedDate) => {
                       if (selectedDate) {
                         setDate(selectedDate);
-                        setCalendarOpen(false);
+                        setCalendarOpen(false); // Close the calendar when a date is selected
                       }
                     }}
                     initialFocus

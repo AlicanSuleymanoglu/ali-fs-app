@@ -39,8 +39,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [meetingToCancel, setMeetingToCancel] = useState<Meeting | null>(null);
-  const [completedMeeting, setCompletedMeeting] = useState<Meeting | null>(null);
-  const [showCompletedDialog, setShowCompletedDialog] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -187,15 +185,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
       </div>
     ));
 
-  const handleMeetingSelect = (meeting: Meeting) => {
-    if (meeting.status?.toLowerCase() === 'completed') {
-      setCompletedMeeting(meeting);
-      setShowCompletedDialog(true);
-    } else if (onSelectMeeting) {
-      onSelectMeeting(meeting);
-    }
-  };
-
   const generateCalendarGrid = () => {
     const grid: React.ReactNode[] = [];
     const currentTimePosition = timeToY(currentTime);
@@ -241,7 +230,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             startHour={START_HOUR}
             endHour={END_HOUR}
             onCancel={() => setMeetingToCancel(meeting)}
-            onSelect={handleMeetingSelect}
+            onSelect={onSelectMeeting}
           />
         );
       });
@@ -283,33 +272,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             <AlertDialogCancel>No, keep it</AlertDialogCancel>
             <AlertDialogAction onClick={() => navigate('/meeting-canceled')} className="bg-red-600 hover:bg-red-700">
               Yes, cancel
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Meeting Already Completed</AlertDialogTitle>
-            <AlertDialogDescription>
-              This meeting has already been completed.<br />
-              If you want to upload a contract, check the task or follow-up meeting.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowCompletedDialog(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowCompletedDialog(false);
-                if (completedMeeting) {
-                  navigate(`/meeting/${completedMeeting.id}`);
-                }
-              }}
-            >
-              Continue Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

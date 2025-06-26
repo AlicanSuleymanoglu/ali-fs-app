@@ -63,12 +63,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
 
   const dayOfWeek = getDayOfWeek(meeting.date);
   const handleClick = () => {
-    if (onSelect) {
-      onSelect(meeting);
-      return;
-    }
     if (meeting.status === 'completed') return;
-    navigate(`/meeting/${meeting.id}`);
+    navigate(`/meeting/${meeting.id}`); // ✅ Navigate to the meeting page
   };
 
   const handleCancel = (e: React.MouseEvent) => {
