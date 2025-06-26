@@ -27,6 +27,7 @@ export interface Meeting {
   deals?: Array<{ id: string; name: string; }>;
   companyCount?: number;
   dealCount?: number;
+  contractUploaded?: boolean;
 }
 
 interface MeetingCardProps {

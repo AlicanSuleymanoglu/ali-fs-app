@@ -8,6 +8,7 @@ interface Deal {
     id: string;
     name: string;
     dealstage?: string;
+    contractUploaded?: boolean;
 }
 
 type DealStatus = 'closed-won' | 'closed-lost' | 'followup';
@@ -45,13 +46,14 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                 dealId: deal.id,
                 dealName: deal.name,
                 dealStage: deal.dealstage,
+                contractUploaded: deal.contractUploaded,
                 completedDeals,
             }
         });
     };
 
     const completedDealIds = deals.filter(
-        d => completedDeals[d.id] || d.dealstage === 'closedwon' || d.dealstage === 'closedlost'
+        d => completedDeals[d.id] || d.contractUploaded || d.dealstage === 'closedwon' || d.dealstage === 'closedlost'
     ).map(d => d.id);
     const allDealsCompleted = completedDealIds.length === deals.length;
 
@@ -62,12 +64,18 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
         return 'Completed';
     };
 
-    const getDealStageLabel = (stage?: string) => {
-        switch (stage) {
+    const getDealStageLabel = (deal: Deal) => {
+        // If contractUploaded is true, always show as Closed Won, even if dealstage is closedlost
+        if (deal.contractUploaded) {
+            return { label: 'Closed Won', color: 'text-green-600 bg-green-50' };
+        }
+        switch (deal.dealstage) {
             case 'closedwon':
                 return { label: 'Closed Won', color: 'text-green-600 bg-green-50' };
             case 'closedlost':
                 return { label: 'Closed Lost', color: 'text-red-600 bg-red-50' };
+            case 'qualifiedtobuy':
+                return { label: 'Follow-Up', color: 'text-yellow-600 bg-yellow-50' };
             case 'appointmentscheduled':
                 return { label: 'Meeting Scheduled', color: 'text-blue-600 bg-blue-50' };
             case 'presentationscheduled':
@@ -103,8 +111,8 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                     <div className="grid grid-cols-1 gap-3">
                         {deals.map((deal) => {
                             const status = completedDeals[deal.id];
-                            const dealStage = getDealStageLabel(deal.dealstage);
-                            const isDone = deal.dealstage === 'closedwon' || deal.dealstage === 'closedlost';
+                            const dealStage = getDealStageLabel(deal);
+                            const isDone = deal.contractUploaded || deal.dealstage === 'closedwon' || deal.dealstage === 'closedlost';
                             const doneBg = '';
                             const isSessionCompleted = !!status;
                             return (

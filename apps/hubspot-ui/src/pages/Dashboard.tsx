@@ -215,6 +215,7 @@ const Dashboard: React.FC = () => {
           deals: item.deals,
           companyCount: item.companyCount,
           dealCount: item.dealCount,
+          contractUploaded: item.contractUploaded,
         };
       });
 

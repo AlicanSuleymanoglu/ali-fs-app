@@ -144,9 +144,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             contactPhone: item.contactPhone,
             internalNotes: cleanNotes,
             companies: item.companies,
-            deals: item.deals,
+            deals: (item.deals || []).map((deal: any) => ({
+              ...deal,
+              contractUploaded: deal.contract_uploaded ?? false,
+            })),
             companyCount: item.companyCount,
             dealCount: item.dealCount,
+            contractUploaded: item.contractUploaded,
           };
         });
 

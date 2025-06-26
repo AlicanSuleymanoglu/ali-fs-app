@@ -73,6 +73,7 @@ export const refreshMeetings = async (
                 companyCount: item.companyCount,
                 dealCount: item.dealCount,
                 dealStage: item.dealStage,
+                contractUploaded: item.contractUploaded,
             };
         });
 

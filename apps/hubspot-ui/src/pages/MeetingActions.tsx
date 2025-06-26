@@ -48,6 +48,7 @@ interface Meeting {
   startTime?: string;
   type?: string;
   dealstage?: string;
+  contractUploaded?: boolean;
 }
 
 const MeetingActions: React.FC = () => {

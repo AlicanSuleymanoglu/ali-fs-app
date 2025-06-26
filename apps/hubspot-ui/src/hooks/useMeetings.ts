@@ -22,6 +22,8 @@ export interface Meeting {
     companyCount?: number;
     dealCount?: number;
     dealStage?: string;
+    contractUploaded?: boolean;
+
     // add other fields as needed
 }
 
