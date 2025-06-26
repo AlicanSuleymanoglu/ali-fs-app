@@ -1893,7 +1893,7 @@ app.post('/api/company/note', async (req, res) => {
         companyId,
         dealId: dealId || null,
         contactId: contactId || null,
-        userId
+        userId: userId
       });
       console.log('✅ Note sent to Zapier webhook');
     } catch (zapierErr) {
