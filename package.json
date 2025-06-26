@@ -37,7 +37,8 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "ts-jest": "^29.2.6",
-    "turbo": "^2.4.4"
+    "turbo": "^2.4.4",
+    "vite-plugin-pwa": "^1.0.0"
   },
   "packageManager": "npm@10.8.2",
   "nodeLinker": "node-modules",
