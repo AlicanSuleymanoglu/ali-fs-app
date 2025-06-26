@@ -606,6 +606,8 @@ app.post('/api/meetings/create', async (req, res) => {
     startTime,
     endTime,
     internalNotes,
+    companyIds,
+    dealIds,
   } = req.body;
 
   console.log("📤 Incoming meeting create request:", {
@@ -634,18 +636,36 @@ app.post('/api/meetings/create', async (req, res) => {
 
   // Now always push associations
   const associations = [];
-  if (companyId) {
-    associations.push({ to: { id: companyId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 188 }] });
+  // Companies: support both single and multiple
+  const allCompanyIds = Array.isArray(companyIds) ? companyIds : companyId ? [companyId] : [];
+  for (const cid of allCompanyIds) {
+    if (cid) {
+      associations.push({ to: { id: cid }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 188 }] });
+    }
   }
+  // Deals: support both single and multiple
+  const allDealIds = Array.isArray(dealIds) ? dealIds : dealId ? [dealId] : [];
+  for (const did of allDealIds) {
+    if (did) {
+      associations.push({ to: { id: did }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 212 }] });
+    }
+  }
+  // Contact (only one, as before)
   if (contactId) {
     associations.push({ to: { id: contactId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 200 }] });
   }
-  if (dealId) {
-    associations.push({ to: { id: dealId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 212 }] });
+  // Remove duplicate associations (by id/type)
+  const uniqueAssociations = [];
+  const seen = new Set();
+  for (const assoc of associations) {
+    const key = assoc.to.id + '-' + assoc.types[0].associationTypeId;
+    if (!seen.has(key)) {
+      uniqueAssociations.push(assoc);
+      seen.add(key);
+    }
   }
 
-
-  console.log("🔗 Associations for meeting:", JSON.stringify(associations, null, 2));
+  console.log("🔗 Associations for meeting:", JSON.stringify(uniqueAssociations, null, 2));
 
   try {
     const isPastMeeting = startTime < Date.now(); // Check if the meeting is in the past
@@ -662,7 +682,7 @@ app.post('/api/meetings/create', async (req, res) => {
         hubspot_owner_id: ownerId,
         hs_meeting_outcome: meetingOutcome,
       },
-      associations
+      associations: uniqueAssociations
     });
 
     console.log("✅ Meeting created successfully:", meetingRes.id);
@@ -1194,7 +1214,7 @@ app.get('/api/hubspot/company/:companyId/deals', async (req, res) => {
 
     const dealDetails = await hubspotClient.crm.deals.batchApi.read({
       inputs: dealIds.map(id => ({ id })),
-      properties: ['dealname', 'dealstage', 'contract_uploaded'],
+      properties: ['dealname', 'dealstage', 'pipeline', 'amount', 'contract_uploaded'],
     });
 
     const salesPipelineDeals = dealDetails.results.filter(

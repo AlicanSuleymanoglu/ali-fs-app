@@ -39,6 +39,8 @@ const AddMeeting: React.FC = () => {
   );
   const [startTime, setStartTime] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [additionalCompanies, setAdditionalCompanies] = useState<Company[]>([]);
+  const [showAddCompanySearch, setShowAddCompanySearch] = useState(false);
   const [meetingType, setMeetingType] = useState<"Sales Meeting" | "Sales Followup">(
     isFollowUp ? "Sales Followup" : (prefilledData.meetingType || "Sales Meeting")
   );
@@ -148,6 +150,11 @@ const AddMeeting: React.FC = () => {
       return;
     }
 
+    // Multi-company/deal support
+    const allCompanies = [selectedCompany, ...additionalCompanies].filter(Boolean);
+    const companyIds = allCompanies.map(c => c.id);
+    const dealIds = allCompanies.map(c => c.dealId || null);
+
     // Normal POST (new or follow-up) — FIXED
     const payload = {
       title,
@@ -160,6 +167,7 @@ const AddMeeting: React.FC = () => {
       contactId: prefilledData.contactId,
       contactPhone: prefilledData.contactPhone,
       internalNotes: prefilledData.internalNotes,
+      ...(additionalCompanies.length > 0 ? { companyIds, dealIds } : {}),
     };
     console.log("Submitting meeting", payload);
 
@@ -312,6 +320,48 @@ const AddMeeting: React.FC = () => {
                     value={selectedCompany}
                     required={true}
                   />
+                  {/* Additional Companies Section */}
+                  <div className="mt-4">
+                    <Label>Additional Restaurants</Label>
+                    {additionalCompanies.length > 0 && (
+                      <ul className="space-y-1 mt-2">
+                        {additionalCompanies.map((company, idx) => (
+                          <li key={company.id} className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
+                            <span>{company.name}</span>
+                            <Button size="sm" variant="ghost" onClick={() => setAdditionalCompanies(prev => prev.filter((c, i) => i !== idx))}>
+                              Remove
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {showAddCompanySearch ? (
+                      <div className="mt-2">
+                        <CompanySearch
+                          onSelect={company => {
+                            // Prevent duplicates
+                            if (
+                              company.id === selectedCompany?.id ||
+                              additionalCompanies.some(c => c.id === company.id)
+                            ) {
+                              toast.error("This restaurant is already added.");
+                              return;
+                            }
+                            setAdditionalCompanies(prev => [...prev, company]);
+                            setShowAddCompanySearch(false);
+                          }}
+                          disableContactCheck
+                        />
+                        <Button size="sm" variant="ghost" className="mt-1" onClick={() => setShowAddCompanySearch(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" className="mt-2" onClick={() => setShowAddCompanySearch(true)}>
+                        + Add more restaurants
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
