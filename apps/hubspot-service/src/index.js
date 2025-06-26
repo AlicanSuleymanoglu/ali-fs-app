@@ -1882,6 +1882,23 @@ app.post('/api/company/note', async (req, res) => {
       await associateNote('contacts', contactId, 202);
     }
 
+    // Step 3: Send note and metadata to Zapier webhook
+    try {
+      const userId = req.session.ownerId || null;
+      await axios.post('https://hooks.zapier.com/hooks/catch/20863141/ubdy2ro/', {
+        note: note.trim(),
+        noteId,
+        companyId,
+        dealId: dealId || null,
+        contactId: contactId || null,
+        userId
+      });
+      console.log('✅ Note sent to Zapier webhook');
+    } catch (zapierErr) {
+      console.error('❌ Failed to send note to Zapier webhook:', zapierErr.response?.data || zapierErr.message);
+      // Do not fail the main request if Zapier fails
+    }
+
     console.log('✅ Company note created and associated:', {
       noteId,
       companyId,
