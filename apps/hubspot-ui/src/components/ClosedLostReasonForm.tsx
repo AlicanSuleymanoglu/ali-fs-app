@@ -4,6 +4,7 @@ import { Label } from "./ui/label.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select.tsx";
 import { Input } from "./ui/input.tsx";
 import { toast } from "sonner";
+import { Loader2 } from 'lucide-react';
 
 interface ClosedLostReasonFormProps {
   dealId: string;           // 🚨 Make sure this is a string and not undefined!
@@ -31,12 +32,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
       toast.error("Please select a reason");
       return;
     }
-    if (reason === "Other" && !otherReason) {
-      toast.error("Please provide details for the other reason");
-      return;
-    }
 
-    const reasonText = reason === "Other" ? otherReason : reason;
     setLoading(true);
 
     try {
@@ -46,7 +42,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deal_stage: "closedlost",
-          closed_lost_reason: reasonText,
+          closed_lost_reason: reason,
         }),
       });
 
@@ -90,21 +86,10 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
               </SelectContent>
             </Select>
           </div>
-          {reason === "Other" && (
-            <div className="space-y-2">
-              <Label htmlFor="other-reason">Other Reason <span className="text-red-500">*</span></Label>
-              <Input
-                id="other-reason"
-                value={otherReason}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtherReason(e.currentTarget.value)}
-                placeholder="Please specify"
-                disabled={loading}
-              />
-            </div>
-          )}
         </div>
         <div className="flex justify-end pt-4">
-          <Button type="submit" className="allo-button" disabled={loading}>
+          <Button type="submit" className="allo-button" disabled={loading || !reason}>
+            {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
             {loading ? "Submitting..." : "Submit"}
           </Button>
         </div>
