@@ -8,10 +8,6 @@ import { Button } from "../components/ui/button.tsx";
 import ContactSearch, { Contact } from './ContactSearch.tsx';
 import AddNewCompanyPopup from './AddNewCompanyPopup.tsx';
 
-// @ts-ignore
-// eslint-disable-next-line
-// @ts-nocheck
-
 export interface Company {
   id: string;
   name: string;
@@ -24,7 +20,6 @@ interface CompanySearchProps {
   onSelect: (company: Company) => void;
   value?: Company | null;
   required?: boolean;
-  disableContactCheck?: boolean;
 }
 
 function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
@@ -37,7 +32,7 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   };
 }
 
-const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required = false, disableContactCheck = false }) => {
+const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Company[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -242,28 +237,6 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     setSearchResults([]);
     setError(null);
 
-    if (disableContactCheck) {
-      // Only fetch deal, skip all dialogs and contact checks
-      try {
-        const dealRes = await fetch(`${BASE_URL}/api/hubspot/company/${company.id}/deals`, {
-          credentials: 'include'
-        });
-        let companyWithDeal = { ...company };
-        if (dealRes.ok) {
-          const data = await dealRes.json();
-          const deals = Array.isArray(data)
-            ? data
-            : (data.results || data.deals || []);
-          const firstDeal = deals[0];
-          companyWithDeal = { ...company, dealId: firstDeal?.id || null };
-        }
-        onSelectRef.current(companyWithDeal);
-      } catch (err) {
-        onSelectRef.current(company);
-      }
-      return;
-    }
-
     try {
       // First check for deals
       const dealRes = await fetch(`${BASE_URL}/api/hubspot/company/${company.id}/deals`, {
@@ -274,10 +247,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         throw new Error("Failed to fetch deals");
       }
 
-      const data = await dealRes.json();
-      const deals = Array.isArray(data)
-        ? data
-        : (data.results || data.deals || []);
+      const deals = await dealRes.json();
       const firstDeal = deals[0];
       const companyWithDeal = { ...company, dealId: firstDeal?.id || null };
 
@@ -305,18 +275,12 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       const contacts = await res.json();
       const firstContact = contacts[0];
 
-      // Fix: If company.dealId is falsy but company.deals exists, use the first deal's id
-      let fixedCompany = { ...company };
-      if (!fixedCompany.dealId && Array.isArray(fixedCompany.deals) && fixedCompany.deals.length > 0) {
-        fixedCompany.dealId = fixedCompany.deals[0].id;
-      }
-
       if (!firstContact) {
         // No contacts found, show contact search dialog
         setShowContactDialog(true);
       } else {
         // Found a contact, check if we need to show the deal dialog
-        const updatedCompany = { ...fixedCompany, contactId: firstContact.id || null };
+        const updatedCompany = { ...company, contactId: firstContact.id || null };
         if (!updatedCompany.dealId) {
           setSelectedCompanyForDialog(updatedCompany);
           setShowNoDealDialog(true);
@@ -327,14 +291,10 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     } catch (err) {
       console.error("❌ Failed to fetch contacts:", err);
       toast.error("Could not fetch contacts for selected company.");
-      let fixedCompany = { ...company };
-      if (!fixedCompany.dealId && Array.isArray(fixedCompany.deals) && fixedCompany.deals.length > 0) {
-        fixedCompany.dealId = fixedCompany.deals[0].id;
-      }
-      if (!fixedCompany.dealId) {
+      if (!company.dealId) {
         setShowNoDealDialog(true);
       } else {
-        onSelectRef.current(fixedCompany);
+        onSelectRef.current(company);
       }
     }
   };
