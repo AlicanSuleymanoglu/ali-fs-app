@@ -1863,6 +1863,20 @@ app.post('/api/company/note', async (req, res) => {
     return res.status(400).json({ error: 'Company ID is required' });
   }
 
+  // Ensure ownerId is set in session
+  let ownerId = req.session.ownerId;
+  if (!ownerId) {
+    try {
+      const whoami = await axios.get(`https://api.hubapi.com/oauth/v1/access-tokens/${token}`);
+      ownerId = whoami.data.user_id;
+      req.session.ownerId = ownerId; // Store for future use
+      console.log("🔁 Fetched ownerId from token:", ownerId);
+    } catch (err) {
+      console.error("❌ Could not resolve ownerId:", err.response?.data || err.message);
+      // Optionally: return res.status(400).json({ error: 'Could not resolve owner ID' });
+    }
+  }
+
   try {
     // Step 1: Create the note with prefix
     const noteResponse = await axios.post(
@@ -1911,14 +1925,13 @@ app.post('/api/company/note', async (req, res) => {
 
     // Step 3: Send note and metadata to Zapier webhook
     try {
-      const userId = req.session.ownerId || null;
       await axios.post('https://hooks.zapier.com/hooks/catch/20863141/ubdy2ro/', {
         note: note.trim(),
         noteId,
         companyId,
         dealId: dealId || null,
         contactId: contactId || null,
-        userId: userId
+        userId: ownerId || null
       });
       console.log('✅ Note sent to Zapier webhook');
     } catch (zapierErr) {
@@ -1930,7 +1943,8 @@ app.post('/api/company/note', async (req, res) => {
       noteId,
       companyId,
       dealId: dealId || 'none',
-      contactId: contactId || 'none'
+      contactId: contactId || 'none',
+      ownerId: ownerId || 'none'
     });
 
     res.json({
