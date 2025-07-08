@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Phone, X, Calendar as CalendarIcon, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format, isPast, isSameDay } from 'date-fns';
 import { Task } from '../types/index.ts';
@@ -23,6 +23,15 @@ interface TaskCardProps {
   onDisqualify?: (taskId: string, reason: string, otherReason?: string) => void;
 }
 
+const REASONS_REQUIRING_DATE = [
+  "Too sophisticated/modern",
+  "Too expensive",
+  "Too many features",
+  "Bad timing",
+  "No interest",
+  "Other"
+];
+
 const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqualify }) => {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,6 +45,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const [selectedMeetingDate, setSelectedMeetingDate] = useState<Date | null>(null);
   const [selectedMeetingTime, setSelectedMeetingTime] = useState<string>("10:00");
   const [meetingNotes, setMeetingNotes] = useState<string>("");
+  const [reattemptDate, setReattemptDate] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
@@ -182,14 +193,25 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const markDealAsClosedLost = async (dealId: string, reason: string) => {
     try {
+      let reattemptDateUnix: number | null = null;
+      if (REASONS_REQUIRING_DATE.includes(reason) && reattemptDate) {
+        const midnightUTC = new Date(Date.UTC(
+          reattemptDate.getFullYear(),
+          reattemptDate.getMonth(),
+          reattemptDate.getDate(),
+          0, 0, 0, 0
+        ));
+        reattemptDateUnix = midnightUTC.getTime();
+      }
       // First mark the deal as closed lost
       const res = await fetch(`${BASE_URL}/api/deal/${dealId}/close-lost`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          deal_stage: "closedlost", // Make sure this matches the internal value in HubSpot
-          closed_lost_reason: reason
+          deal_stage: "closedlost",
+          closed_lost_reason: reason,
+          reattempt_date: reattemptDateUnix,
         }),
       });
 
@@ -216,6 +238,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
     if (disqualifyReason === "Other" && !otherReason) {
       toast.error("Please provide details for the other reason");
+      return;
+    }
+
+    if (REASONS_REQUIRING_DATE.includes(disqualifyReason) && !reattemptDate) {
+      toast.error("Please select a reattempt date");
       return;
     }
 
@@ -248,6 +275,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     setShowWinDealDialog(true);
     setIsDialogOpen(false);
   };
+
+  useEffect(() => {
+    if (showDisqualifyDialog) {
+      console.log('Disqualify Reason:', disqualifyReason);
+    }
+  }, [disqualifyReason, showDisqualifyDialog]);
 
   return (
     <>
@@ -408,7 +441,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                 className="w-full min-h-[100px] p-2 border rounded-md"
                 placeholder="Add any notes or details about the meeting..."
                 value={meetingNotes}
-                onChange={(e) => setMeetingNotes(e.target.value)}
+                onChange={(e) => setMeetingNotes(e.currentTarget.value)}
               />
             </div>
             <div className="flex justify-end pt-4">
@@ -450,11 +483,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                   <SelectItem value="Too expensive">Too expensive</SelectItem>
                   <SelectItem value="Too many features">Too many features</SelectItem>
                   <SelectItem value="No fit to the restaurant type">No fit to the restaurant type</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
                   <SelectItem value="No interest">No interest</SelectItem>
-                  <SelectItem value="Bad Timing">Bad Timing</SelectItem>
+                  <SelectItem value="Bad timing">Bad timing</SelectItem>
                   <SelectItem value="Works black">Works black</SelectItem>
                   <SelectItem value="Restaurant closed">Restaurant closed</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -468,6 +501,36 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                   onChange={handleOtherReasonChange}
                   placeholder="Please specify the reason"
                 />
+              </div>
+            )}
+
+            {REASONS_REQUIRING_DATE.includes(disqualifyReason) && (
+              <div className="space-y-2">
+                <Label htmlFor="reattempt-date">Reattempt Date</Label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={"w-full justify-start text-left font-normal" + (!reattemptDate ? " text-muted-foreground" : "")}
+                      type="button"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {reattemptDate ? format(reattemptDate, "dd.MM.yyyy") : <span>Select date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={reattemptDate || undefined}
+                      onSelect={(date) => {
+                        setReattemptDate(date ?? null);
+                        setCalendarOpen(false);
+                      }}
+                      fromDate={new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
 
