@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
+import { ChevronLeft, ThumbsUp, ThumbsDown, Clock, Info, Flame } from 'lucide-react';
 import { Button } from "../components/ui/button.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog.tsx";
 import { useIsMobile } from "../hooks/use-mobile.tsx";
 import { useMeetingContext } from "../context/MeetingContext.tsx";
 import DealSelector from './DealSelector.tsx';
+import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover.tsx';
 const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 const MeetingOutcome: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const [showHotDealDialog, setShowHotDealDialog] = useState(false);
   const isMobile = useIsMobile();
   const [completedDeals, setCompletedDeals] = useState<Set<string>>(new Set());
 
@@ -38,7 +38,7 @@ const MeetingOutcome: React.FC = () => {
   }
 
   // Handler for outcome selection
-  const handleOutcome = (outcome: 'positive' | 'negative' | 'follow-up') => {
+  const handleOutcome = async (outcome: 'positive' | 'negative' | 'follow-up') => {
     if (outcome === 'positive') {
       navigate(`/meeting/${id}/positive`, {
         state: {
@@ -58,39 +58,29 @@ const MeetingOutcome: React.FC = () => {
         }
       });
     } else if (outcome === 'follow-up') {
-      setShowHotDealDialog(true);
-    }
-  };
-
-  // Handler for hot deal dialog
-  const handleHotDealResponse = async (isHotDeal: boolean) => {
-    setShowHotDealDialog(false);
-
-    if (currentDealId) {
-      try {
-        await fetch(`${BASE_URL}/api/deals/${currentDealId}/hot-deal`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hot_deal: isHotDeal }),
-        });
-
-        console.log(`✅ Deal ${currentDealId} set as ${isHotDeal ? 'true' : 'false'}`);
-      } catch (err) {
-        console.error("❌ Failed to set hot deal status:", err);
+      // Always set as hot deal before navigating
+      if (currentDealId) {
+        try {
+          await fetch(`${BASE_URL}/api/deals/${currentDealId}/hot-deal`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hot_deal: true }),
+          });
+        } catch (err) {
+          console.error("❌ Failed to set hot deal status:", err);
+        }
       }
+      navigate(`/meeting/${id}/follow-up`, {
+        state: {
+          isHotDeal: true,
+          dealId: currentDealId,
+          remainingDeals,
+          dealName,
+          completedDeals: location.state?.completedDeals
+        }
+      });
     }
-
-    // Continue with navigation to follow-up
-    navigate(`/meeting/${id}/follow-up`, {
-      state: {
-        isHotDeal,
-        dealId: currentDealId,
-        remainingDeals,
-        dealName,
-        completedDeals: location.state?.completedDeals
-      }
-    });
   };
 
   const handleBack = () => {
@@ -149,41 +139,35 @@ const MeetingOutcome: React.FC = () => {
               Closed Lost
             </Button>
 
-            <Button
-              className="flex items-center justify-center py-6 bg-blue-500 hover:bg-blue-600 text-white"
-              onClick={() => handleOutcome('follow-up')}
-            >
-              <Clock size={18} className="mr-2" />
-              Follow-up
-            </Button>
+            <div className="relative flex items-center w-full">
+              <Button
+                className="flex items-center justify-center py-6 bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all duration-200 w-full"
+                onClick={() => handleOutcome('follow-up')}
+              >
+                <Flame size={20} className="mr-2" />
+                Hot Deal Follow Up
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="ml-2 p-1 rounded-full bg-white border border-blue-200 text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    aria-label="Hot Deal Info"
+                    style={{ position: 'absolute', right: '-44px', top: '50%', transform: 'translateY(-50%)' }}
+                  >
+                    <Info size={20} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-xs text-sm text-blue-900 bg-blue-50 border-blue-200">
+                  <strong>Hot Deal Policy:</strong><br />
+                  You should only schedule follow-ups with hot deals.<br />
+                  If the deal isn't hot, mark it as lost and set a reattempt date.
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
       </div>
-
-      <Dialog open={showHotDealDialog} onOpenChange={setShowHotDealDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Is this a hot deal?</DialogTitle>
-          </DialogHeader>
-
-          <DialogFooter className="mt-6 flex space-x-2 justify-center sm:justify-between">
-            <Button
-              variant="outline"
-              onClick={() => handleHotDealResponse(false)}
-              className="flex-1"
-            >
-              No
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => handleHotDealResponse(true)}
-              className="flex-1 bg-[#2E1813] hover:bg-[#2E1813]/90"
-            >
-              Yes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
