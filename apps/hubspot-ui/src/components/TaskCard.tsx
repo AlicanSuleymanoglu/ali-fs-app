@@ -261,6 +261,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
         task.dealId,
         disqualifyReason === "Other" ? otherReason : disqualifyReason
       );
+    } else if (onComplete) {
+      await onComplete(task.id);
     }
 
     toast.info(`Task for ${task.contactName} marked as disqualified`);
