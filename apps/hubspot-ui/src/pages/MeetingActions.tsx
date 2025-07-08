@@ -28,6 +28,7 @@ import {
 import { cn } from '../lib/utils.ts'; // Added cn
 import { toast } from '../components/ui/use-toast.ts';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover.tsx';
+import { Input } from '../components/ui/input.tsx';
 
 // Add type for meeting
 interface Meeting {
@@ -68,6 +69,9 @@ const MeetingActions: React.FC = () => {
   const [showDealClosedDialog, setShowDealClosedDialog] = useState(false);
   const [dealClosedUrl, setDealClosedUrl] = useState<string | null>(null);
   const [dealClosedStage, setDealClosedStage] = useState<string | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
@@ -102,19 +106,23 @@ const MeetingActions: React.FC = () => {
   };
 
   const handleCancelConfirm = async () => {
-    setCancelDialogOpen(false);
+    if (!cancellationReason.trim()) {
+      setCancelError("Cancellation reason is required");
+      return;
+    }
+    setCancelError("");
+    setCancelSubmitting(true);
     try {
       const res = await fetch(`${BASE_URL}/api/meeting/${meetingDetails.id}/cancel`, {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellation_reason: cancellationReason })
       });
       if (!res.ok) throw new Error('Failed to cancel meeting');
-
-      // Refresh meetings after successful cancellation
       if (user?.user_id) {
         await refreshMeetings(user.user_id, setMeetings);
       }
-
       navigate('/meeting-canceled', {
         state: {
           meetingDetails: {
@@ -128,8 +136,11 @@ const MeetingActions: React.FC = () => {
         }
       });
     } catch (err) {
-      console.error('Failed to cancel meeting:', err);
-      alert('Failed to cancel meeting. Please try again.');
+      setCancelError("Failed to cancel meeting. Please try again.");
+    } finally {
+      setCancelSubmitting(false);
+      setCancelDialogOpen(false);
+      setCancellationReason("");
     }
   };
 
@@ -431,15 +442,27 @@ const MeetingActions: React.FC = () => {
               Cancel Meeting
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel this meeting with {meetingDetails.contactName} from {meetingDetails.companyName}?
+              Please provide a reason for canceling this meeting with {meetingDetails.contactName} from {meetingDetails.companyName}.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>No, keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancelConfirm} className="bg-destructive hover:bg-destructive/90">
-              Yes, cancel
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <form onSubmit={e => { e.preventDefault(); handleCancelConfirm(); }} className="flex flex-col gap-3 mt-2">
+            <Input
+              value={cancellationReason}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCancellationReason(e.currentTarget.value)}
+              placeholder="Enter cancellation reason..."
+              required
+              maxLength={200}
+              className="text-base"
+              autoFocus
+            />
+            {cancelError && <div className="text-red-500 text-sm">{cancelError}</div>}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancelSubmitting}>No, keep it</AlertDialogCancel>
+              <Button type="submit" className="bg-destructive hover:bg-destructive/90 w-full" disabled={cancelSubmitting}>
+                {cancelSubmitting ? "Canceling..." : "Cancel Meeting"}
+              </Button>
+            </AlertDialogFooter>
+          </form>
         </AlertDialogContent>
       </AlertDialog>
 

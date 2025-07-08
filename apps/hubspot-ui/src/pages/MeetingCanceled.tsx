@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Check, Home, Calendar } from 'lucide-react';
 import { Button } from '../components/ui/button.tsx';
 import { refreshMeetings } from '../utils/refreshMeetings.ts';
 
-
 const MeetingCanceled: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   // Get meeting details from location.state
   const meetingDetails = location.state?.meetingDetails;

@@ -698,21 +698,26 @@ app.post('/api/meetings/create', async (req, res) => {
 
 
 
-// Cancel a meeting (set outcome to CANCELED)
+// Cancel a meeting (set outcome to CANCELED and save reason)
 app.post('/api/meeting/:id/cancel', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
   const hubspotClient = new Client({ accessToken: token });
   const meetingId = req.params.id;
+  const { cancellation_reason } = req.body;
+
+  if (!cancellation_reason || !cancellation_reason.trim()) {
+    return res.status(400).json({ error: 'Cancellation reason is required' });
+  }
 
   try {
     await hubspotClient.crm.objects.meetings.basicApi.update(meetingId, {
       properties: {
-        hs_meeting_outcome: "CANCELED"
+        hs_meeting_outcome: "CANCELED",
+        cancellation_reason: cancellation_reason.trim()
       }
     });
-    console.log("Checking basicApi:", typeof hubspotClient.crm.objects.meetings.basicApi);
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to cancel meeting:", err.response?.data || err.message);
