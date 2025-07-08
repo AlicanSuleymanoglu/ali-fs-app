@@ -947,15 +947,20 @@ app.patch('/api/deal/:dealId/close-lost', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
   const { dealId } = req.params;
-  const { deal_stage, closed_lost_reason } = req.body;
+  const { deal_stage, closed_lost_reason, reattempt_date } = req.body;
   const hubspotClient = new Client({ accessToken: token });
 
   try {
+    const properties = {
+      dealstage: "closedlost",
+      closed_lost_reason,
+    };
+    if (reattempt_date) {
+      // Send as UNIX milliseconds (13 digits)
+      properties.reattempt_date = reattempt_date;
+    }
     await hubspotClient.crm.deals.basicApi.update(dealId, {
-      properties: {
-        dealstage: "closedlost", // Use 'dealstage' (HubSpot internal property)
-        closed_lost_reason,    // Make sure this property exists in your HubSpot portal!
-      },
+      properties,
     });
     res.json({ success: true });
   } catch (err) {

@@ -5,20 +5,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./ui/input.tsx";
 import { toast } from "sonner";
 import { Loader2 } from 'lucide-react';
+import { Calendar } from "./ui/calendar.tsx";
+import { Dialog, DialogContent } from "./ui/dialog.tsx";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover.tsx";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 interface ClosedLostReasonFormProps {
   dealId: string;           // 🚨 Make sure this is a string and not undefined!
   onComplete: () => void;
 }
 
+const REASONS_REQUIRING_DATE = [
+  "Too sophisticated/modern",
+  "Too expensive",
+  "Too many features",
+  "Bad timing",
+  "No interest",
+  "Other"
+];
+
+function isMobileDevice() {
+  if (typeof window === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+}
+
 const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onComplete }) => {
   const [reason, setReason] = useState<string>("");
   const [otherReason, setOtherReason] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [reattemptDate, setReattemptDate] = React.useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
   console.log("dealId being passed to form:", dealId);
+
+  const shouldShowReattemptDate = REASONS_REQUIRING_DATE.includes(reason);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +59,16 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
     setLoading(true);
 
     try {
+      let reattemptDateUnix: number | null = null;
+      if (shouldShowReattemptDate && reattemptDate) {
+        const midnightUTC = new Date(Date.UTC(
+          reattemptDate.getFullYear(),
+          reattemptDate.getMonth(),
+          reattemptDate.getDate(),
+          0, 0, 0, 0
+        ));
+        reattemptDateUnix = midnightUTC.getTime(); // unix + three (ms)
+      }
       const res = await fetch(`${BASE_URL}/api/deal/${dealId}/close-lost`, {
         method: "PATCH",
         credentials: "include",
@@ -43,6 +76,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
         body: JSON.stringify({
           deal_stage: "closedlost",
           closed_lost_reason: reason,
+          reattempt_date: reattemptDateUnix,
         }),
       });
 
@@ -86,6 +120,35 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
               </SelectContent>
             </Select>
           </div>
+          {shouldShowReattemptDate && (
+            <div className="space-y-2">
+              <Label htmlFor="reattempt-date">Reattempt Date</Label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={"w-full justify-start text-left font-normal" + (!reattemptDate ? " text-muted-foreground" : "")}
+                    type="button"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {reattemptDate ? format(reattemptDate, "dd.MM.yyyy") : <span>Select date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={reattemptDate}
+                    onSelect={(date) => {
+                      setReattemptDate(date);
+                      setCalendarOpen(false);
+                    }}
+                    fromDate={new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         <div className="flex justify-end pt-4">
           <Button type="submit" className="allo-button" disabled={loading || !reason}>
