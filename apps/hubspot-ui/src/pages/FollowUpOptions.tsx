@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
 import { useUser } from '../hooks/useUser.ts';
+import { Textarea } from "../components/ui/textarea.tsx";
 
 const FollowUpOptions: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -26,6 +27,8 @@ const FollowUpOptions: React.FC = () => {
     const [showDateSelector, setShowDateSelector] = useState(false);
     const [showTaskSuccess, setShowTaskSuccess] = useState(false);
     const [createdTaskDate, setCreatedTaskDate] = useState<Date | null>(null);
+    const [taskNote, setTaskNote] = useState("");
+    const [submittingNote, setSubmittingNote] = useState(false);
 
     if (!meetingDetails) {
         toast.error("Meeting not found");
@@ -94,36 +97,30 @@ const FollowUpOptions: React.FC = () => {
         return currentDate;
     };
 
-    const handleTaskSchedule = (timeframe: string) => {
+    const handleTaskDateSelect = (timeframe: string) => {
         if (!checkCompanyName()) return;
-
         const today = new Date();
         let taskDate = new Date(today);
-
         const daysMap: { [key: string]: number } = {
             '3days': 3,
             '1week': 7,
             '2weeks': 14,
             '3weeks': 21
         };
-
         if (timeframe === 'custom') {
             setShowDateSelector(true);
             return;
         }
-
         const daysToAdd = daysMap[timeframe] || 7;
-
         if (timeframe === '3days') {
             taskDate = calculateBusinessDays(today, daysToAdd);
         } else {
             taskDate.setDate(today.getDate() + daysToAdd);
         }
-
-        scheduleTask(taskDate);
+        setDate(taskDate);
     };
 
-    const scheduleTask = async (taskDate: Date) => {
+    const scheduleTask = async (taskDate: Date, noteOverride?: string) => {
         if (!meetingDetails || !user?.user_id) return;
 
         const dateWithTime = new Date(taskDate);
@@ -139,6 +136,7 @@ const FollowUpOptions: React.FC = () => {
             companyName: meetingDetails.companyName,
             ownerId: user.user_id,
             meetingId: meetingDetails.id,
+            taskBody: noteOverride?.trim() || undefined,
         };
 
         try {
@@ -204,8 +202,16 @@ const FollowUpOptions: React.FC = () => {
     const handleCalendarSelect = (selectedDate: Date | undefined) => {
         if (selectedDate) {
             setDate(selectedDate);
-            scheduleTask(selectedDate);
+            setShowDateSelector(false);
         }
+    };
+
+    const handleScheduleTask = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!date) return;
+        setSubmittingNote(true);
+        await scheduleTask(date, taskNote);
+        setSubmittingNote(false);
     };
 
     const handleBackNavigation = () => {
@@ -215,6 +221,10 @@ const FollowUpOptions: React.FC = () => {
         } else {
             navigate(`/meeting/${id}/follow-up`);
         }
+    };
+
+    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setTaskNote(e.target.value);
     };
 
     return (
@@ -228,10 +238,8 @@ const FollowUpOptions: React.FC = () => {
                     <ChevronLeft size={16} className="mr-1" />
                     Back
                 </Button>
-
                 <div className="w-full max-w-md mx-auto">
-                    <h2 className="text-xl font-semibold mb-8 text-center">Choose Follow-Up Type</h2>
-
+                    <h2 className="text-xl font-semibold mb-8 text-center">Schedule Follow-Up Task</h2>
                     {showTaskSuccess ? (
                         <div className="allo-card bg-green-50 border-green-200">
                             <div className="flex flex-col items-center justify-center py-8 space-y-4">
@@ -249,77 +257,67 @@ const FollowUpOptions: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : !showTaskOptions ? (
-                        <div className="flex flex-col space-y-4">
-                            <Button
-                                className="flex items-center justify-center py-4 bg-blue-500 hover:bg-blue-600 text-white"
-                                onClick={handleScheduleFollowUp}
-                            >
-                                <Clock size={18} className="mr-2" />
-                                Schedule Follow-up Meeting
-                            </Button>
-
-                            <Button
-                                className="flex items-center justify-center py-4 bg-amber-500 hover:bg-amber-600 text-white"
-                                onClick={() => {
-                                    if (checkCompanyName()) {
-                                        setShowTaskOptions(true);
-                                    }
-                                }}
-                            >
-                                <Clock size={18} className="mr-2" />
-                                Schedule Follow-up Task
-                            </Button>
-                        </div>
                     ) : (
-                        <div className="allo-card">
-                            <h3 className="text-lg font-medium mb-4">When to follow up?</h3>
-
-                            {showDateSelector ? (
-                                <div className="mb-4">
-                                    <Popover open={showDateSelector} onOpenChange={setShowDateSelector}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className="w-full justify-start text-left font-normal"
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {date ? format(date, "dd.MM.yyyy") : "Select a date"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="center">
-                                            <Calendar
-                                                mode="single"
-                                                selected={date}
-                                                onSelect={handleCalendarSelect}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 gap-3">
-                                    <Button onClick={() => handleTaskSchedule('3days')}>In 3 days</Button>
-                                    <Button onClick={() => handleTaskSchedule('1week')}>In 1 week</Button>
-                                    <Button onClick={() => handleTaskSchedule('2weeks')}>In 2 weeks</Button>
-                                    <Button onClick={() => handleTaskSchedule('3weeks')}>In 3 weeks</Button>
-                                    <Button
-                                        className="bg-gray-100 text-gray-800 hover:bg-gray-200"
-                                        onClick={() => handleTaskSchedule('custom')}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        Select a date
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="mt-2"
-                                        onClick={() => setShowTaskOptions(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
+                        <form className="flex flex-col gap-6" onSubmit={handleScheduleTask}>
+                            <div className="allo-card">
+                                <h3 className="text-lg font-medium mb-4">When to follow up?</h3>
+                                {showDateSelector ? (
+                                    <div className="mb-4">
+                                        <Popover open={showDateSelector} onOpenChange={setShowDateSelector}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start text-left font-normal"
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {date ? format(date, "dd.MM.yyyy") : "Select a date"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="center">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={date}
+                                                    onSelect={handleCalendarSelect}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <Button type="button" variant={date && format(date, 'dd.MM.yyyy') === format(calculateBusinessDays(new Date(), 3), 'dd.MM.yyyy') ? 'default' : 'outline'} onClick={() => handleTaskDateSelect('3days')}>In 3 days</Button>
+                                        <Button type="button" variant={date && format(date, 'dd.MM.yyyy') === format(new Date(new Date().setDate(new Date().getDate() + 7)), 'dd.MM.yyyy') ? 'default' : 'outline'} onClick={() => handleTaskDateSelect('1week')}>In 1 week</Button>
+                                        <Button type="button" variant={date && format(date, 'dd.MM.yyyy') === format(new Date(new Date().setDate(new Date().getDate() + 14)), 'dd.MM.yyyy') ? 'default' : 'outline'} onClick={() => handleTaskDateSelect('2weeks')}>In 2 weeks</Button>
+                                        <Button type="button" variant={date && format(date, 'dd.MM.yyyy') === format(new Date(new Date().setDate(new Date().getDate() + 21)), 'dd.MM.yyyy') ? 'default' : 'outline'} onClick={() => handleTaskDateSelect('3weeks')}>In 3 weeks</Button>
+                                        <Button
+                                            type="button"
+                                            className="bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                            onClick={() => handleTaskDateSelect('custom')}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            Select a date
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="allo-card">
+                                <h3 className="text-lg font-medium mb-2">Task Notes (optional)</h3>
+                                <Textarea
+                                    value={taskNote}
+                                    onChange={handleTextareaChange}
+                                    placeholder="Add any notes for this follow-up task..."
+                                    className="text-base min-h-[100px]"
+                                    maxLength={500}
+                                />
+                            </div>
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={!date || submittingNote}
+                            >
+                                {submittingNote ? "Scheduling..." : date ? `Schedule Task for ${format(date, 'dd.MM.yyyy')}` : "Schedule Task"}
+                            </Button>
+                        </form>
                     )}
                 </div>
             </div>
