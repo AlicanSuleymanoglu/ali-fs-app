@@ -5,6 +5,16 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "../components/ui/
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover.tsx";
 import { cn } from "../lib/utils.ts";
 import { useIsMobile } from "../hooks/use-mobile.tsx";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../components/ui/alert-dialog.tsx";
 
 export interface Meeting {
   id: string;
@@ -50,7 +60,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const isCompleted = meeting.status === 'completed';
+  const [showCompletedDialog, setShowCompletedDialog] = React.useState(false);
+
+  const isCompleted = meeting.status?.toLowerCase() === 'completed';
   const isPastScheduled = meeting.status === 'scheduled' && new Date(meeting.startTime) < new Date();
 
   const getDayOfWeek = (dateString: string) => {
@@ -59,11 +71,12 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
-
-
   const dayOfWeek = getDayOfWeek(meeting.date);
   const handleClick = () => {
-    if (meeting.status === 'completed') return;
+    if (isCompleted) {
+      setShowCompletedDialog(true);
+      return;
+    }
     navigate(`/meeting/${meeting.id}`); // ✅ Navigate to the meeting page
   };
 
@@ -156,7 +169,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     const startPercentage = ((startMinutes - startHour * 60) / totalMinutes) * 100;
     const durationPercentage = ((endMinutes - startMinutes) / totalMinutes) * 100;
 
-    const cardCursor = isCompleted ? 'cursor-default' : 'cursor-pointer';
+    // Always allow pointer cursor for clickability
+    const cardCursor = 'cursor-pointer';
 
     // Determine background color based on status
     let meetingBgColor = 'bg-[#FF8769]/90';
@@ -178,81 +192,129 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     const minHeight = '50px';
 
     return (
-      <div
-        className={`meeting-card ${meetingBgColor} ${meetingHoverBgColor} transition-all duration-200 ${cardCursor} shadow-sm border border-opacity-10`}
-        style={{
-          top: `${startPercentage}%`,
-          height: calculatedHeight,
-          minHeight: minHeight,
-          maxHeight: `${durationPercentage > 100 ? 100 : durationPercentage}%`,
-          zIndex: 10
-        }}
-        onClick={handleClick}
-      >
-        <div className="p-2 flex flex-col h-full overflow-hidden">
-          <div className="flex justify-between items-start mb-1">
-            <div className="text-xs font-bold truncate max-w-[75%]">{meeting.title}</div>
-            <div>
-              {renderStatusBadge()}
+      <>
+        <div
+          className={`meeting-card ${meetingBgColor} ${meetingHoverBgColor} transition-all duration-200 ${cardCursor} shadow-sm border border-opacity-10`}
+          style={{
+            top: `${startPercentage}%`,
+            height: calculatedHeight,
+            minHeight: minHeight,
+            maxHeight: `${durationPercentage > 100 ? 100 : durationPercentage}%`,
+            zIndex: 10
+          }}
+          onClick={handleClick}
+        >
+          <div className="p-2 flex flex-col h-full overflow-hidden">
+            <div className="flex justify-between items-start mb-1">
+              <div className="text-xs font-bold truncate max-w-[75%]">{meeting.title}</div>
+              <div>
+                {renderStatusBadge()}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-auto text-xs flex justify-between w-full">
-            <div className="flex items-center gap-1 truncate max-w-[48%]">
-              <Building2 size={10} />
-              <span className="truncate">{meeting.companyName}</span>
-            </div>
-            <div className="flex items-center gap-1 truncate max-w-[48%]">
-              <User size={10} />
-              <span className="truncate">{meeting.contactName}</span>
+            <div className="mt-auto text-xs flex justify-between w-full">
+              <div className="flex items-center gap-1 truncate max-w-[48%]">
+                <Building2 size={10} />
+                <span className="truncate">{meeting.companyName}</span>
+              </div>
+              <div className="flex items-center gap-1 truncate max-w-[48%]">
+                <User size={10} />
+                <span className="truncate">{meeting.contactName}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        {/* Completed Meeting Confirmation Dialog (calendar view) */}
+        <AlertDialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>This meeting is already completed</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to continue?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowCompletedDialog(false);
+                  navigate(`/meeting/${meeting.id}`);
+                }}
+              >
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "allo-card hover-lift",
-        isCompleted ? "cursor-default" : "cursor-pointer"
-      )}
-      onClick={handleClick}
-    >
-      <div className="flex flex-col space-y-2">
-        <div className="flex justify-between items-start">
-          <h3 className="font-medium">{meeting.title}</h3>
-          {renderStatusBadge()}
-        </div>
-        {isPastScheduled && (
-          <div className="bg-yellow-100 text-yellow-800 text-xs p-2 rounded">
-            <div className="flex items-center gap-1">
-              <AlertTriangle size={14} className="text-[#FF6B00]" />
-              <span>This meeting is in the past and needs attention</span>
+    <>
+      <div
+        className={cn(
+          "allo-card hover-lift",
+          isCompleted ? "cursor-default" : "cursor-pointer"
+        )}
+        onClick={handleClick}
+      >
+        <div className="flex flex-col space-y-2">
+          <div className="flex justify-between items-start">
+            <h3 className="font-medium">{meeting.title}</h3>
+            {renderStatusBadge()}
+          </div>
+          {isPastScheduled && (
+            <div className="bg-yellow-100 text-yellow-800 text-xs p-2 rounded">
+              <div className="flex items-center gap-1">
+                <AlertTriangle size={14} className="text-[#FF6B00]" />
+                <span>This meeting is in the past and needs attention</span>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-between text-sm text-allo-muted">
+            <div className="flex items-center gap-1.5">
+              <User size={14} />
+              <span>{meeting.contactName}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Building2 size={14} />
+              <span>{meeting.companyName}</span>
             </div>
           </div>
-        )}
-        <div className="flex justify-between text-sm text-allo-muted">
-          <div className="flex items-center gap-1.5">
-            <User size={14} />
-            <span>{meeting.contactName}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Building2 size={14} />
-            <span>{meeting.companyName}</span>
-          </div>
+          {meeting.address && (
+            <div
+              className="flex items-center gap-1.5 text-xs text-allo-muted hover:text-[#FF8769] cursor-pointer"
+              onClick={handleAddressClick}
+            >
+              <span className="underline">{meeting.address}</span>
+            </div>
+          )}
         </div>
-        {meeting.address && (
-          <div
-            className="flex items-center gap-1.5 text-xs text-allo-muted hover:text-[#FF8769] cursor-pointer"
-            onClick={handleAddressClick}
-          >
-            <span className="underline">{meeting.address}</span>
-          </div>
-        )}
       </div>
-    </div>
+      {/* Completed Meeting Confirmation Dialog */}
+      <AlertDialog open={showCompletedDialog} onOpenChange={setShowCompletedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>This meeting is already completed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowCompletedDialog(false);
+                navigate(`/meeting/${meeting.id}`);
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
