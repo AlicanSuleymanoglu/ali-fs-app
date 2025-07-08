@@ -303,7 +303,7 @@ const Dashboard: React.FC = () => {
               disabled={!hasMeetings}
             >
               <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
-              <span className="text-xs font-medium">Ali</span>
+              <span className="text-xs font-medium">Route</span>
             </Button>
           </div>
         }
