@@ -29,6 +29,7 @@ const FollowUpOptions: React.FC = () => {
     const [createdTaskDate, setCreatedTaskDate] = useState<Date | null>(null);
     const [taskNote, setTaskNote] = useState("");
     const [submittingNote, setSubmittingNote] = useState(false);
+    const [step, setStep] = useState<'choose' | 'task'>((isHotDeal) ? 'choose' : 'task');
 
     if (!meetingDetails) {
         toast.error("Meeting not found");
@@ -215,16 +216,19 @@ const FollowUpOptions: React.FC = () => {
     };
 
     const handleBackNavigation = () => {
-        if (showTaskOptions) {
+        if (showTaskOptions || step === 'task') {
             setShowTaskOptions(false);
             setShowDateSelector(false);
+            if (isHotDeal) {
+                setStep('choose');
+            }
         } else {
             navigate(`/meeting/${id}/follow-up`);
         }
     };
 
     const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setTaskNote(e.target.value);
+        setTaskNote(e.currentTarget.value);
     };
 
     return (
@@ -240,7 +244,24 @@ const FollowUpOptions: React.FC = () => {
                 </Button>
                 <div className="w-full max-w-md mx-auto">
                     <h2 className="text-xl font-semibold mb-8 text-center">Schedule Follow-Up Task</h2>
-                    {showTaskSuccess ? (
+                    {step === 'choose' ? (
+                        <div className="allo-card flex flex-col gap-6 items-center">
+                            <h3 className="text-lg font-medium mb-4 text-center">What would you like to do?</h3>
+                            <Button
+                                className="w-full"
+                                onClick={handleScheduleFollowUp}
+                            >
+                                Schedule Follow-Up Meeting
+                            </Button>
+                            <Button
+                                className="w-full"
+                                variant="outline"
+                                onClick={() => setStep('task')}
+                            >
+                                Schedule Follow-Up Task
+                            </Button>
+                        </div>
+                    ) : showTaskSuccess ? (
                         <div className="allo-card bg-green-50 border-green-200">
                             <div className="flex flex-col items-center justify-center py-8 space-y-4">
                                 <div className="bg-green-100 p-3 rounded-full">
