@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group.tsx";
 import CompanySearch, { Company } from '../components/CompanySearch.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useUser } from '../hooks/useUser.ts';
+import { refreshMeetings } from '../utils/refreshMeetings.ts';
 
 interface CompanyWithDeal extends Company {
   dealId?: string | null | undefined;
@@ -43,6 +44,8 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
   const [additionalCompanies, setAdditionalCompanies] = useState<CompanyWithDeal[]>([]);
   const [showAddCompanySearch, setShowAddCompanySearch] = useState(false);
+  const [loadingMeetingId, setLoadingMeetingId] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleCreateMeeting = () => {
     setIsCreateMeetingDialogOpen(true);
@@ -97,20 +100,22 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
       toast.success(`Meeting scheduled successfully`);
 
-      if (newMeeting.isPastMeeting) {
-        toast.success("Past meeting logged. Redirecting to outcome.");
-        navigate(`/meeting/${newMeeting.meetingId}/outcome`);
-        return;
-      }
-
-      setIsCreateMeetingDialogOpen(false);
-      setSelectedCompany(null);
-      setMeetingType("Sales Meeting");
-      setDate(undefined);
-      setStartTime("");
-      setNotes("");
-      setAdditionalCompanies([]);
-      setShowAddCompanySearch(false);
+      // Show loading for all meetings
+      setLoadingMeetingId(newMeeting.meetingId);
+      const meetingDateObj = new Date(date);
+      const [hour, minute] = startTime.split(":").map(Number);
+      meetingDateObj.setHours(hour, minute, 0, 0);
+      const formattedDate = meetingDateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+      const formattedTime = meetingDateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const isoDate = meetingDateObj.toISOString().split('T')[0];
+      setTimeout(async () => {
+        if (user?.user_id) {
+          await refreshMeetings(user.user_id, () => { });
+        }
+        window.location.replace(`/dashboard?selectedDate=${isoDate}`);
+      }, 10000);
+      setLoadingMeetingId(`${newMeeting.meetingId}|${formattedDate}|${formattedTime}`);
+      return;
     } catch (err) {
       console.error("❌ Error creating meeting:", err);
       toast.error("Failed to schedule meeting");
@@ -147,6 +152,29 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Loading UI for past meeting creation
+  if (loadingMeetingId) {
+    // Parse meetingId, date, time
+    let meetingInfo = loadingMeetingId.split('|');
+    let meetingDateMsg = '';
+    if (meetingInfo.length === 3) {
+      meetingDateMsg = `You can find the meeting on the calendar on ${meetingInfo[1]} at ${meetingInfo[2]}.`;
+    }
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
+        <div className="flex flex-col items-center gap-4 p-8 rounded shadow bg-white border">
+          <span className="text-lg font-semibold">Creating meeting in HubSpot...</span>
+          <span className="animate-spin h-8 w-8 border-4 border-blue-300 border-t-transparent rounded-full"></span>
+          <span className="text-gray-500 text-sm">Waiting for HubSpot to confirm meeting creation.<br />This may take a few seconds.</span>
+          {meetingDateMsg && (
+            <span className="text-blue-700 text-sm mt-2">{meetingDateMsg}</span>
+          )}
+          <span className="text-xs text-gray-400 mt-2">The page will refresh automatically.</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
