@@ -1970,3 +1970,58 @@ app.post('/api/company/note', async (req, res) => {
     });
   }
 });
+
+// Get companies for a list of dealIds
+app.post('/api/deals/companies', async (req, res) => {
+  const token = req.session.accessToken;
+  const { dealIds } = req.body;
+  if (!token) return res.status(401).send('Not authenticated');
+  if (!dealIds || !Array.isArray(dealIds)) return res.status(400).send('Missing dealIds array');
+
+  const hubspotClient = new Client({ accessToken: token });
+
+  try {
+    // Loop over dealIds and get the associated company for each
+    const dealToCompany = {};
+    for (const dealId of dealIds) {
+      try {
+        const assocRes = await hubspotClient.crm.associations.v4.basicApi.getPage(
+          'deals',
+          dealId,
+          'companies',
+          undefined,
+          1
+        );
+        if (assocRes.results && assocRes.results.length > 0) {
+          dealToCompany[dealId] = assocRes.results[0].toObjectId;
+        }
+      } catch (err) {
+        // Optionally log or ignore
+      }
+    }
+
+    // Fetch company names in batch
+    const companyIds = Object.values(dealToCompany).filter(Boolean);
+    let companyMap = {};
+    if (companyIds.length) {
+      const companyDetails = await hubspotClient.crm.companies.batchApi.read({
+        inputs: companyIds.map(id => ({ id: String(id) })),
+        properties: ['name']
+      });
+      companyMap = Object.fromEntries(
+        companyDetails.results.map(c => [c.id, c.properties.name || 'Unknown Company'])
+      );
+    }
+
+    // Build final map: dealId → companyName
+    const result = {};
+    Object.entries(dealToCompany).forEach(([dealId, companyId]) => {
+      result[dealId] = companyMap[companyId] || 'Unknown Company';
+    });
+
+    res.json({ dealToCompanyName: result });
+  } catch (err) {
+    console.error('❌ Failed to fetch companies for deals:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to fetch companies for deals', details: err.response?.data || err.message });
+  }
+});

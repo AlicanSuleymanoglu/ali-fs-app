@@ -4,6 +4,7 @@ import { ChevronLeft, Check } from 'lucide-react';
 import { Button } from "../components/ui/button.tsx";
 import { cn } from "../lib/utils.ts";
 
+
 interface Deal {
     id: string;
     name: string;
@@ -24,6 +25,30 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
     const location = useLocation();
     // Map of dealId -> status
     const [completedDeals, setCompletedDeals] = useState<Record<string, DealStatus>>({});
+    // Map of dealId -> companyName
+    const [dealToCompanyName, setDealToCompanyName] = useState<{ [dealId: string]: string }>({});
+    const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
+
+
+    // Fetch company names for all deals on mount
+    useEffect(() => {
+        const fetchCompanies = async () => {
+            if (!deals.length) return;
+            try {
+                const res = await fetch(`${BASE_URL}/api/deals/companies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ dealIds: deals.map(d => d.id) }),
+                });
+                const data = await res.json();
+                setDealToCompanyName(data.dealToCompanyName || {});
+            } catch (err) {
+                setDealToCompanyName({});
+            }
+        };
+        fetchCompanies();
+    }, [deals]);
 
     // Update completed deals when returning from outcome flow or on mount
     useEffect(() => {
@@ -131,8 +156,10 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                                             "font-medium break-words truncate max-w-full",
                                             isDone && !isSessionCompleted ? "text-gray-400" : ""
                                         )}>{deal.name || 'Unnamed Deal'}</span>
+                                        <span className="text-xs text-gray-500 block">
+                                            {dealToCompanyName[deal.id] || 'Loading company...'}
+                                        </span>
                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                            <span className="text-xs sm:text-sm text-gray-500 font-mono truncate">#{deal.id}</span>
                                             <span className={cn(
                                                 "text-xs px-2 py-0.5 rounded-full truncate",
                                                 dealStage.color,
