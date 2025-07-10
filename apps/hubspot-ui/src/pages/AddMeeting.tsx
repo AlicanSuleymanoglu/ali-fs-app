@@ -32,6 +32,9 @@ const AddMeeting: React.FC = () => {
   // Get prefilled data if any
   const prefilledData = location.state || {};
 
+  // Determine if we came from DealSelector (multi-deal flow)
+  const fromDealSelector = Boolean(prefilledData.fromDealSelector || (prefilledData.dealId && prefilledData.companyId));
+
   const [date, setDate] = useState<Date | undefined>(
     prefilledData.preselectedDate
       ? new Date(prefilledData.preselectedDate)
@@ -46,26 +49,26 @@ const AddMeeting: React.FC = () => {
   );
   const [notes, setNotes] = useState(prefilledData.notes || "");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [showCompanySearch, setShowCompanySearch] = useState(false);
 
   // Check if company selection is forced
   const forceCompany = prefilledData.forceCompany || false;
 
   // Prefill company data if needed
   useEffect(() => {
-    if ((isFollowUp || forceCompany || isRescheduling) && prefilledData.companyName) {
-      if (!prefilledData.companyId) {
-        toast.error("Missing company ID for follow-up meeting");
-        navigate(-1); // Use direct navigation here since handleBack isn't in deps
-        return;
-      }
-
-      const company: Company = {
-        id: prefilledData.companyId,
-        name: prefilledData.companyName,
-        address: prefilledData.companyAddress || 'Unknown Address'
-      };
-      setSelectedCompany(company);
+    // Always prefer company from DealSelector (location.state) if present
+    const companyIdToUse = prefilledData.companyId;
+    const companyNameToUse = prefilledData.companyName;
+    const companyAddressToUse = prefilledData.companyAddress || 'Unknown Address';
+    if ((isFollowUp || forceCompany || isRescheduling) && companyIdToUse && companyNameToUse) {
+      setSelectedCompany({
+        id: companyIdToUse,
+        name: companyNameToUse,
+        address: companyAddressToUse
+      });
+      return;
     }
+    // fallback: do not set selectedCompany here, let user pick
   }, [isFollowUp, forceCompany, isRescheduling, prefilledData, navigate]);
 
   // Process preselected times
@@ -156,9 +159,11 @@ const AddMeeting: React.FC = () => {
     const dealIds = allCompanies.map(c => c.dealId || null);
 
     // Normal POST (new or follow-up) — FIXED
+    // Always prefer location.state.companyId if present (from DealSelector)
+    const companyIdToUse = prefilledData.companyId || selectedCompany?.id;
     const payload = {
       title,
-      companyId: selectedCompany?.id || prefilledData.companyId,
+      companyId: companyIdToUse,
       meetingType: meetingTypeLabel,
       startTime: startMillis,  // ✔️
       endTime: endMillis,      // ✔️
@@ -276,6 +281,7 @@ const AddMeeting: React.FC = () => {
   const showCompanySelection = !forceCompany && !isFollowUp && !isRescheduling;
   const showMeetingTypeSelection = !isFollowUp && !forceCompany && !isRescheduling;
   const showMeetingTypeDisplay = isFollowUp;
+  // In the UI, always show selectedCompany if set, otherwise fallback to prefilledData
   const showCompanyDetails = (forceCompany || isFollowUp || isRescheduling) && (selectedCompany || prefilledData.companyName);
 
   // Handle back navigation
@@ -310,6 +316,23 @@ const AddMeeting: React.FC = () => {
                 ? "Schedule Follow-up Meeting"
                 : "Schedule New Meeting"}
           </h2>
+
+          {isFollowUp && fromDealSelector && (
+            <div className="mb-4">
+              {/* Remove the separate Change Company button and instead make the company display clickable */}
+              {/* Only enable this in the multi-deal (DealSelector) follow-up flow */}
+              {showCompanySearch && (
+                <CompanySearch
+                  onSelect={(company) => {
+                    setSelectedCompany(company);
+                    setShowCompanySearch(false);
+                  }}
+                  value={selectedCompany}
+                  required={true}
+                />
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -367,13 +390,39 @@ const AddMeeting: React.FC = () => {
 
               {showCompanyDetails && (
                 <div className="md:col-span-2">
-                  <div className="border rounded-md p-3 bg-gray-50">
+                  <div
+                    className={
+                      `border rounded-md p-3 bg-gray-50 cursor-pointer transition hover:bg-gray-100 ${isFollowUp && fromDealSelector ? 'ring-2 ring-blue-200' : ''}`
+                    }
+                    title={isFollowUp && fromDealSelector ? 'Click to change company' : ''}
+                    onClick={() => {
+                      if (isFollowUp && fromDealSelector) setShowCompanySearch(true);
+                    }}
+                  >
                     <Label className="block mb-1 text-sm">Company</Label>
                     <p className="font-medium">{selectedCompany?.name || prefilledData.companyName}</p>
                     <p className="text-sm text-muted-foreground">
                       {selectedCompany?.address || prefilledData.companyAddress || 'Address not available'}
                     </p>
+                    {isFollowUp && fromDealSelector && (
+                      <span className="text-xs text-blue-600 underline mt-1 inline-block">Change Company</span>
+                    )}
                   </div>
+                  {isFollowUp && fromDealSelector && showCompanySearch && (
+                    <div className="mt-2">
+                      <CompanySearch
+                        onSelect={(company) => {
+                          setSelectedCompany(company);
+                          setShowCompanySearch(false);
+                        }}
+                        value={selectedCompany}
+                        required={true}
+                      />
+                      <Button size="sm" variant="ghost" className="mt-1" onClick={() => setShowCompanySearch(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 

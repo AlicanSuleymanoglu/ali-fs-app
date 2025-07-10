@@ -2013,13 +2013,16 @@ app.post('/api/deals/companies', async (req, res) => {
       );
     }
 
-    // Build final map: dealId → companyName
-    const result = {};
+    // Build final map: dealId → { companyId, companyName }
+    const dealToCompanyInfo = {};
     Object.entries(dealToCompany).forEach(([dealId, companyId]) => {
-      result[dealId] = companyMap[companyId] || 'Unknown Company';
+      dealToCompanyInfo[dealId] = {
+        companyId: companyId || null,
+        companyName: companyMap[companyId] || 'Unknown Company'
+      };
     });
 
-    res.json({ dealToCompanyName: result });
+    res.json({ dealToCompanyInfo });
   } catch (err) {
     console.error('❌ Failed to fetch companies for deals:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to fetch companies for deals', details: err.response?.data || err.message });

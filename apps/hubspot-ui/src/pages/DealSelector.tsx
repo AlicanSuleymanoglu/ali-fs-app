@@ -25,8 +25,8 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
     const location = useLocation();
     // Map of dealId -> status
     const [completedDeals, setCompletedDeals] = useState<Record<string, DealStatus>>({});
-    // Map of dealId -> companyName
-    const [dealToCompanyName, setDealToCompanyName] = useState<{ [dealId: string]: string }>({});
+    // Map of dealId -> { name, id }
+    const [dealToCompany, setDealToCompany] = useState<Record<string, { name: string, id: string | null }>>({});
     const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
@@ -42,9 +42,24 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                     body: JSON.stringify({ dealIds: deals.map(d => d.id) }),
                 });
                 const data = await res.json();
-                setDealToCompanyName(data.dealToCompanyName || {});
+                // data.dealToCompanyInfo is a map of dealId -> { companyId, companyName }
+                // If backend only returns dealToCompanyName, fallback to old behavior
+                let dealToCompany: Record<string, { name: string, id: string | null }> = {};
+                if (data.dealToCompanyInfo) {
+                    for (const dealId of Object.keys(data.dealToCompanyInfo)) {
+                        dealToCompany[dealId] = {
+                            name: data.dealToCompanyInfo[dealId].companyName || 'Unknown Company',
+                            id: data.dealToCompanyInfo[dealId].companyId || null
+                        };
+                    }
+                } else if (data.dealToCompanyName) {
+                    for (const deal of deals) {
+                        dealToCompany[deal.id] = { name: data.dealToCompanyName[deal.id] || 'Unknown Company', id: null };
+                    }
+                }
+                setDealToCompany(dealToCompany);
             } catch (err) {
-                setDealToCompanyName({});
+                setDealToCompany({});
             }
         };
         fetchCompanies();
@@ -66,9 +81,12 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
     }, [location.state]);
 
     const handleDealSelect = (deal: Deal) => {
+        // Find the companyId for this deal
+        const companyId = dealToCompany[deal.id]?.id || null;
         navigate(`/meeting/${meetingId}/outcome`, {
             state: {
                 dealId: deal.id,
+                companyId: companyId,
                 dealName: deal.name,
                 dealStage: deal.dealstage,
                 contractUploaded: deal.contractUploaded,
@@ -157,7 +175,7 @@ const DealSelector: React.FC<DealSelectorProps> = ({ meetingId, deals, onBack })
                                             isDone && !isSessionCompleted ? "text-gray-400" : ""
                                         )}>{deal.name || 'Unnamed Deal'}</span>
                                         <span className="text-xs text-gray-500 block">
-                                            {dealToCompanyName[deal.id] || 'Loading company...'}
+                                            {dealToCompany[deal.id]?.name || 'Loading company...'}
                                         </span>
                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                                             <span className={cn(

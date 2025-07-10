@@ -39,6 +39,9 @@ const FollowUpOptions: React.FC = () => {
 
     const targetDealId = location.state?.dealId || meetingDetails.dealId;
 
+    // Use location.state.companyId if present, else fallback to meetingDetails.companyId
+    const companyIdToUse = location.state?.companyId || meetingDetails.companyId;
+
     const checkCompanyName = () => {
         if (!meetingDetails.companyName || meetingDetails.companyName.toLowerCase() === 'unknown') {
             toast.error("Unknown Company", {
@@ -64,6 +67,11 @@ const FollowUpOptions: React.FC = () => {
             console.error("Failed to update deal stage to 'in-negotiation':", err);
         }
 
+        // Prefer company info from location.state (DealSelector) if present
+        const companyIdToUse = location.state?.companyId || meetingDetails.companyId;
+        const companyNameToUse = location.state?.companyName || meetingDetails.companyName;
+        const companyAddressToUse = location.state?.companyAddress || meetingDetails.address;
+
         // Pass all relevant state to AddMeeting
         navigate('/add-meeting', {
             state: {
@@ -71,12 +79,12 @@ const FollowUpOptions: React.FC = () => {
                 isFollowUp: true,
                 originalMeetingId: meetingDetails.id,
                 meetingId: id,
-                companyId: meetingDetails.companyId,
-                companyName: meetingDetails.companyName,
-                companyAddress: meetingDetails.address,
+                companyId: companyIdToUse,
+                companyName: companyNameToUse,
+                companyAddress: companyAddressToUse,
                 contactId: meetingDetails.contactId,
                 contactName: meetingDetails.contactName,
-                dealId: location.state?.dealId || meetingDetails.dealId,
+                dealId: dealId || meetingDetails.dealId,
                 forceCompany: true,
                 meetingType: meetingDetails.type,
                 isHotDeal: isHotDeal,
@@ -131,7 +139,7 @@ const FollowUpOptions: React.FC = () => {
 
         const payload = {
             taskDate: unixMillis,
-            companyId: meetingDetails.companyId,
+            companyId: companyIdToUse,
             contactId: meetingDetails.contactId,
             dealId: targetDealId,
             companyName: meetingDetails.companyName,

@@ -43,6 +43,7 @@ const MeetingOutcome: React.FC = () => {
       navigate(`/meeting/${id}/positive`, {
         state: {
           dealId: currentDealId,
+          companyId: location.state?.companyId,
           remainingDeals,
           dealName,
           completedDeals: location.state?.completedDeals
@@ -52,6 +53,7 @@ const MeetingOutcome: React.FC = () => {
       navigate(`/meeting/${id}/negative`, {
         state: {
           dealId: currentDealId,
+          companyId: location.state?.companyId,
           remainingDeals,
           dealName,
           completedDeals: location.state?.completedDeals
@@ -75,6 +77,7 @@ const MeetingOutcome: React.FC = () => {
         state: {
           isHotDeal: true,
           dealId: currentDealId,
+          companyId: location.state?.companyId,
           remainingDeals,
           dealName,
           completedDeals: location.state?.completedDeals

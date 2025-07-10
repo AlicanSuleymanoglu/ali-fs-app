@@ -54,6 +54,8 @@ const FollowUpOutcome: React.FC = () => {
     }
   }, [meetingDetails]);
 
+  const companyIdToUse = location.state?.companyId || meetingDetails?.companyId;
+
   const handleAudioSend = async (blob: Blob) => {
     setAudioBlob(blob);
     const formData = new FormData();
@@ -61,7 +63,7 @@ const FollowUpOutcome: React.FC = () => {
     formData.append('audio', blob, 'voice-note.webm');
     formData.append('userId', ownerId ?? 'unknown');
     formData.append('meetingId', meetingDetails?.id ?? '');
-    formData.append('companyId', String(meetingDetails?.companyId ?? ''));
+    formData.append('companyId', String(companyIdToUse ?? ''));
     formData.append('dealId', String(meetingDetails?.dealId ?? ''));
     formData.append('contactId', String(meetingDetails?.contactId ?? ''));
 
@@ -81,6 +83,7 @@ const FollowUpOutcome: React.FC = () => {
           ...location.state,
           isHotDeal,
           dealId,
+          companyId: companyIdToUse,
           isVoiceNoteSent: true
         }
       });
@@ -106,7 +109,7 @@ const FollowUpOutcome: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify({
           note: textInput,
-          companyId: meetingDetails?.companyId,
+          companyId: companyIdToUse,
           dealId: meetingDetails?.dealId,
           contactId: meetingDetails?.contactId,
         }),
@@ -121,6 +124,7 @@ const FollowUpOutcome: React.FC = () => {
           ...location.state,
           isHotDeal,
           dealId,
+          companyId: companyIdToUse,
           isVoiceNoteSent: true
         }
       });
@@ -151,6 +155,7 @@ const FollowUpOutcome: React.FC = () => {
           ...location.state,
           isHotDeal,
           dealId,
+          companyId: companyIdToUse,
           isVoiceNoteSent: true
         }
       });
@@ -207,7 +212,7 @@ const FollowUpOutcome: React.FC = () => {
                 <Button
                   onClick={handleTextSubmit}
                   disabled={isSubmitting || !textInput.trim()}
-                  className="w-full"
+                  className="w-full sm:w-auto"
                 >
                   {isSubmitting ? "Sending..." : "Send Note"}
                 </Button>
