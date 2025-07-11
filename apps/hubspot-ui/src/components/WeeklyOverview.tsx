@@ -148,9 +148,10 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   // Calculate the supported cached range
   const today = new Date();
   const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const rangeStart = subWeeksDate(currentWeekStart, 3); // 3 weeks before
-  const rangeEnd = addWeeksDate(currentWeekStart, 3);   // 3 weeks after
-  rangeEnd.setDate(rangeEnd.getDate() + 6); // Move to Sunday of that week
+  // Only last week, this week, and next week are supported
+  const rangeStart = subWeeksDate(currentWeekStart, 1); // last week (Monday)
+  const rangeEnd = addWeeksDate(currentWeekStart, 1);   // next week (Monday)
+  rangeEnd.setDate(rangeEnd.getDate() + 6); // Move to Sunday of next week
   rangeEnd.setHours(23, 59, 59, 999);
 
   // Check if the displayed week is within the cached range
@@ -168,8 +169,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     >
       {!isDisplayedWeekSupported && (
         <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
-          Currently only <b>Meetings</b> within <b>3 weeks</b> past or future are shown.
-          Check HubSpot for more.
+          Only meetings from last, this, and next week are shown.
         </div>
       )}
       <div className="flex justify-between items-center mb-3">

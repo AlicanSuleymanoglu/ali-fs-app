@@ -186,14 +186,14 @@ app.post('/api/meetings', async (req, res) => {
     const day = today.getDay();
     const diffToMonday = (day === 0 ? -6 : 1) - day;
 
-    // Start: Monday 3 weeks ago
+    // Start: Monday last week
     const start = new Date(today);
-    start.setDate(today.getDate() + diffToMonday - 21);
+    start.setDate(today.getDate() + diffToMonday - 7);
     start.setHours(0, 0, 0, 0);
 
-    // End: Sunday 3 weeks ahead (go to Monday 3 weeks ahead, then add 6 days)
+    // End: Sunday next week (go to Monday next week, then add 6 days)
     const end = new Date(today);
-    end.setDate(today.getDate() + diffToMonday + 21 + 6);
+    end.setDate(today.getDate() + diffToMonday + 14 - 1); // Monday next week + 6 days = Sunday next week
     end.setHours(23, 59, 59, 999);
 
     return { startTime: start.getTime(), endTime: end.getTime() };
