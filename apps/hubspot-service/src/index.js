@@ -458,18 +458,17 @@ app.post('/api/meetings', async (req, res) => {
 
 
 
-// ✅ Get one meeting by ID
+// ✅ Get one meeting by ID with full details (company, deal, contact, etc)
 app.get('/api/meeting/:id', async (req, res) => {
-  console.log("Raw Start Time:", rawStartTime);
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
 
   const meetingId = req.params.id;
-
   const hubspotClient = new Client({ accessToken: token });
 
   try {
-    const result = await hubspotClient.crm.objects.meetings.basicApi.getById(meetingId, [
+    // Fetch the meeting object
+    const meeting = await hubspotClient.crm.objects.meetings.basicApi.getById(meetingId, [
       "hs_meeting_title",
       "hs_meeting_start_time",
       "hs_meeting_end_time",
@@ -478,14 +477,104 @@ app.get('/api/meeting/:id', async (req, res) => {
       "hs_activity_type",
       "dealId",
       "hs_internal_meeting_notes",
+      "hubspot_owner_id"
     ]);
 
+    // Fetch associations (companies, deals, contacts)
+    const [companyAssoc, dealAssoc, contactAssoc] = await Promise.all([
+      axios.get(`https://api.hubapi.com/crm/v4/objects/meetings/${meetingId}/associations/companies`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`https://api.hubapi.com/crm/v4/objects/meetings/${meetingId}/associations/deals`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`https://api.hubapi.com/crm/v4/objects/meetings/${meetingId}/associations/contacts`, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+    const companyIds = companyAssoc.data.results?.map(r => r.toObjectId) || [];
+    const dealIds = dealAssoc.data.results?.map(r => r.toObjectId) || [];
+    const contactIds = contactAssoc.data.results?.map(r => r.toObjectId) || [];
+
+    // Fetch details for companies, deals, contacts
+    const [companyDetails, dealDetails, contactDetails] = await Promise.all([
+      companyIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/companies/batch/read',
+        {
+          properties: ['name', 'address', 'city'],
+          inputs: companyIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } },
+      dealIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/deals/batch/read',
+        {
+          properties: ['dealname', 'dealstage', 'contract_uploaded'],
+          inputs: dealIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } },
+      contactIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/contacts/batch/read',
+        {
+          properties: ['firstname', 'lastname', 'phone'],
+          inputs: contactIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } }
+    ]);
+
+    // Build lookup maps
+    const companyMap = new Map(
+      companyDetails.data.results.map(c => [c.id, {
+        id: c.id,
+        name: c.properties.name || 'Unnamed Company',
+        address: [c.properties.address, c.properties.city].filter(Boolean).join(', ') || 'Unknown Address'
+      }])
+    );
+    const dealMap = new Map(
+      dealDetails.data.results.map(d => [d.id, {
+        id: d.id,
+        name: d.properties.dealname || 'Unnamed Deal',
+        dealstage: d.properties.dealstage || null,
+        contract_uploaded: d.properties.contract_uploaded || null
+      }])
+    );
+    const contactMap = new Map(
+      contactDetails.data.results.map(c => [c.id, {
+        name: `${c.properties.firstname || ''} ${c.properties.lastname || ''}`.trim(),
+        phone: c.properties.phone || ''
+      }])
+    );
+
+    // Compose the meeting object
+    const companies = companyIds.map(cid => companyMap.get(String(cid))).filter(Boolean);
+    const deals = dealIds.map(did => dealMap.get(String(did))).filter(Boolean);
+    const contacts = contactIds.map(cid => contactMap.get(String(cid))).filter(Boolean);
+    const company = companies[0];
+    const deal = deals[0];
+    const contact = contacts[0];
+
     res.json({
-      id: result.id,
-      ...result.properties
+      id: meeting.id,
+      title: meeting.properties.hs_meeting_title || 'Untitled',
+      startTime: meeting.properties.hs_meeting_start_time,
+      endTime: meeting.properties.hs_meeting_end_time,
+      date: new Date(meeting.properties.hs_meeting_start_time).toLocaleDateString('de-DE'),
+      address: meeting.properties.hs_meeting_location || '',
+      companyAddress: company?.address || 'Unknown Address',
+      companyName: company?.name || 'Unknown Company',
+      companyId: company?.id || null,
+      contactName: contact?.name || 'Unknown Contact',
+      contactPhone: contact?.phone || '',
+      contactId: contactIds[0] || null,
+      dealId: deal?.id || null,
+      internalNotes: meeting.properties.hs_internal_meeting_notes || '',
+      status: meeting.properties.hs_meeting_outcome || 'scheduled',
+      type: meeting.properties.hs_activity_type || 'meeting',
+      companies,
+      deals,
+      companyCount: companies.length,
+      dealCount: deals.length,
+      contractUploaded: deal?.contract_uploaded || false,
     });
   } catch (err) {
-    console.error("❌ Failed to fetch meeting by ID:", err.message);
+    console.error("❌ Failed to fetch meeting by ID (detailed):", err.response?.data || err.message);
     res.status(404).send("Meeting not found");
   }
 });

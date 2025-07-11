@@ -1,3 +1,4 @@
+// NOTE: If you see TypeScript errors about DOM types (e.g., 'Property ... does not exist on type ...'), ensure your tsconfig.json includes "dom" in the "lib" array.
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Calendar, FileText, CalendarIcon } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -38,13 +39,14 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   const [calendarOpen, setCalendarOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { meetings } = useMeetingContext();
+  const { meetings, setMeetings } = useMeetingContext();
   const meetingDetails = meetings.find(m => m.id === id);
   const user = useUser();
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
   const [additionalCompanies, setAdditionalCompanies] = useState<CompanyWithDeal[]>([]);
   const [showAddCompanySearch, setShowAddCompanySearch] = useState(false);
   const [loadingMeetingId, setLoadingMeetingId] = useState<string | null>(null);
+  const [loadingMeetingPast, setLoadingMeetingPast] = useState<{ id: string, isPast: boolean } | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleCreateMeeting = () => {
@@ -100,17 +102,35 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
 
       toast.success(`Meeting scheduled successfully`);
 
-      // Show loading for all meetings
+      // If meeting is in the past, show loading and then redirect to outcome page
+      if (newMeeting.isPastMeeting) {
+        setLoadingMeetingPast({ id: newMeeting.meetingId, isPast: true });
+        setTimeout(async () => {
+          try {
+            if (user?.user_id) {
+              // Refresh meetings context (like dashboard)
+              await refreshMeetings(user.user_id, setMeetings);
+            }
+            // Redirect to MeetingActions page for the new meeting
+            navigate(`/meeting/${newMeeting.meetingId}`);
+          } catch (err) {
+            toast.error('Could not refresh meetings after creation. Redirecting to dashboard.');
+            navigate('/dashboard');
+          }
+        }, 10000);
+        return;
+      }
+      // Otherwise, show loading and redirect to dashboard as before
       setLoadingMeetingId(newMeeting.meetingId);
       const meetingDateObj = new Date(date);
-      const [hour, minute] = startTime.split(":").map(Number);
-      meetingDateObj.setHours(hour, minute, 0, 0);
+      const [hour2, minute2] = startTime.split(":").map(Number);
+      meetingDateObj.setHours(hour2, minute2, 0, 0);
       const formattedDate = meetingDateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
       const formattedTime = meetingDateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       const isoDate = meetingDateObj.toISOString().split('T')[0];
       setTimeout(async () => {
         if (user?.user_id) {
-          await refreshMeetings(user.user_id, () => { });
+          await refreshMeetings(user.user_id, setMeetings);
         }
         window.location.replace(`/dashboard?selectedDate=${isoDate}`);
       }, 10000);
@@ -154,6 +174,19 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
   }, []);
 
   // Loading UI for past meeting creation
+  if (loadingMeetingPast) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
+        <div className="flex flex-col items-center gap-4 p-8 rounded shadow bg-white border">
+          <span className="text-lg font-semibold">Creating meeting in HubSpot...</span>
+          <span className="animate-spin h-8 w-8 border-4 border-blue-300 border-t-transparent rounded-full"></span>
+          <span className="text-gray-500 text-sm">Waiting for HubSpot to confirm meeting creation.<br />This may take a few seconds.</span>
+          <span className="text-blue-700 text-sm mt-2">You will be redirected to the meeting outcome page.</span>
+          <span className="text-xs text-gray-400 mt-2">The page will redirect automatically.</span>
+        </div>
+      </div>
+    );
+  }
   if (loadingMeetingId) {
     // Parse meetingId, date, time
     let meetingInfo = loadingMeetingId.split('|');
