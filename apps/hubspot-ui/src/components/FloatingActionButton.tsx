@@ -198,7 +198,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
           <DialogHeader>
             <DialogTitle>Schedule New Meeting</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[80vh] overflow-y-auto">
             <div className="space-y-2">
               <CompanySearch onSelect={setSelectedCompany} value={selectedCompany} required />
             </div>
