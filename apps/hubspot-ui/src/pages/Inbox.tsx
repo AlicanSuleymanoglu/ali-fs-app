@@ -19,8 +19,19 @@ const Inbox: React.FC = () => {
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
-  const incompleteTasks = sortedTasks.filter((task) => !task.completed && !task.disqualified);
-  const completedTasks = sortedTasks.filter((task) => task.completed || task.disqualified);
+  // Deduplicate tasks by companyId and dueDate (same day)
+  const incompleteTasks = [];
+  const seen = new Map();
+  for (const task of sortedTasks) {
+    if (task.completed || task.disqualified) continue;
+    const companyId = task.companyId || 'unknown';
+    const dueDate = task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : 'unknown'; // YYYY-MM-DD
+    const key = `${companyId}_${dueDate}`;
+    if (!seen.has(key)) {
+      seen.set(key, true);
+      incompleteTasks.push(task);
+    }
+  }
 
   const handleTaskClick = (taskId: string) => {
     markAsRead(taskId);
@@ -55,60 +66,25 @@ const Inbox: React.FC = () => {
         <h2 className="text-xl font-semibold">My Inbox</h2>
       </div>
 
-      <Tabs defaultValue="incomplete" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="incomplete">
-            Incomplete
-            {incompleteTasks.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{incompleteTasks.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed
-            {completedTasks.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{completedTasks.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="incomplete" className="mt-4">
-          <div className="space-y-4">
-            {incompleteTasks.length > 0 ? (
-              incompleteTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onClick={() => handleTaskClick(task.id)}
-                  onComplete={handleTaskComplete}
-                  onDisqualify={handleTaskDisqualify}
-                />
-              ))
-            ) : (
-              <p className="text-center py-10 text-muted-foreground">
-                No incomplete tasks at the moment. Great job keeping your inbox clean!
-              </p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="completed" className="mt-4">
-          <div className="space-y-4">
-            {completedTasks.length > 0 ? (
-              completedTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onClick={() => handleTaskClick(task.id)}
-                />
-              ))
-            ) : (
-              <p className="text-center py-10 text-muted-foreground">
-                No completed tasks yet. Your tasks will appear here once completed.
-              </p>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="mt-4">
+        <div className="space-y-4">
+          {incompleteTasks.length > 0 ? (
+            incompleteTasks.map(task => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onClick={() => handleTaskClick(task.id)}
+                onComplete={handleTaskComplete}
+                onDisqualify={handleTaskDisqualify}
+              />
+            ))
+          ) : (
+            <p className="text-center py-10 text-muted-foreground">
+              No incomplete tasks at the moment. Great job keeping your inbox clean!
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
