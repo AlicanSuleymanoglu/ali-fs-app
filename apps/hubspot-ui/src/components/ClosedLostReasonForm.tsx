@@ -36,6 +36,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
   const [loading, setLoading] = useState(false);
   const [reattemptDate, setReattemptDate] = React.useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
+  const [displayedMonth, setDisplayedMonth] = useState<Date>(() => reattemptDate || new Date());
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
 
@@ -92,6 +93,10 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
     }
   };
 
+  // Responsive styles for mobile dropdowns
+  const dropdownContainerClass = "flex flex-col sm:flex-row gap-2 mb-2 items-center justify-center";
+  const dropdownClass = "px-3 py-2 rounded border text-base w-full sm:w-auto";
+
   return (
     <div className="allo-card w-full">
       <h2 className="text-xl font-semibold mb-6">Closed Lost Reason</h2>
@@ -135,6 +140,34 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
+                  {/* Month/Year Dropdowns for easier navigation */}
+                  <div className={dropdownContainerClass}>
+                    <select
+                      value={displayedMonth.getMonth()}
+                      className={dropdownClass}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const newMonth = parseInt(e.currentTarget.value, 10);
+                        setDisplayedMonth(new Date(displayedMonth.getFullYear(), newMonth, 1));
+                      }}
+                    >
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <option key={i} value={i}>{format(new Date(2000, i, 1), 'MMMM')}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={displayedMonth.getFullYear()}
+                      className={dropdownClass}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const newYear = parseInt(e.currentTarget.value, 10);
+                        setDisplayedMonth(new Date(newYear, displayedMonth.getMonth(), 1));
+                      }}
+                    >
+                      {Array.from({ length: 30 }).map((_, i) => {
+                        const year = new Date().getFullYear() + i;
+                        return <option key={year} value={year}>{year}</option>;
+                      })}
+                    </select>
+                  </div>
                   <Calendar
                     mode="single"
                     selected={reattemptDate}
@@ -143,6 +176,10 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
                       setCalendarOpen(false);
                     }}
                     fromDate={new Date()}
+                    month={displayedMonth}
+                    onMonthChange={setDisplayedMonth}
+                    showOutsideDays
+                    numberOfMonths={1}
                     initialFocus
                   />
                 </PopoverContent>

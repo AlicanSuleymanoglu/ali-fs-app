@@ -47,6 +47,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const [meetingNotes, setMeetingNotes] = useState<string>("");
   const [reattemptDate, setReattemptDate] = useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // For month/year dropdowns in reattempt date picker
+  const [displayedMonth, setDisplayedMonth] = useState<Date>(() => reattemptDate || new Date());
+  const dropdownContainerClass = "flex flex-col sm:flex-row gap-2 mb-2 items-center justify-center";
+  const dropdownClass = "px-3 py-2 rounded border text-base w-full sm:w-auto";
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
@@ -443,7 +447,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                 className="w-full min-h-[100px] p-2 border rounded-md"
                 placeholder="Add any notes or details about the meeting..."
                 value={meetingNotes}
-                onChange={(e) => setMeetingNotes(e.currentTarget.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMeetingNotes(e.currentTarget.value)}
               />
             </div>
             <div className="flex justify-end pt-4">
@@ -500,7 +504,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                 <Input
                   id="other-reason"
                   value={otherReason}
-                  onChange={handleOtherReasonChange}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOtherReasonChange(e)}
                   placeholder="Please specify the reason"
                 />
               </div>
@@ -521,6 +525,34 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
+                    {/* Month/Year Dropdowns for easier navigation */}
+                    <div className={dropdownContainerClass}>
+                      <select
+                        value={displayedMonth.getMonth()}
+                        className={dropdownClass}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const newMonth = parseInt(e.currentTarget.value, 10);
+                          setDisplayedMonth(new Date(displayedMonth.getFullYear(), newMonth, 1));
+                        }}
+                      >
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <option key={i} value={i}>{format(new Date(2000, i, 1), 'MMMM')}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={displayedMonth.getFullYear()}
+                        className={dropdownClass}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const newYear = parseInt(e.currentTarget.value, 10);
+                          setDisplayedMonth(new Date(newYear, displayedMonth.getMonth(), 1));
+                        }}
+                      >
+                        {Array.from({ length: 30 }).map((_, i) => {
+                          const year = new Date().getFullYear() + i;
+                          return <option key={year} value={year}>{year}</option>;
+                        })}
+                      </select>
+                    </div>
                     <CalendarComponent
                       mode="single"
                       selected={reattemptDate || undefined}
@@ -530,6 +562,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                       }}
                       fromDate={new Date()}
                       initialFocus
+                      month={displayedMonth}
+                      onMonthChange={setDisplayedMonth}
                     />
                   </PopoverContent>
                 </Popover>
