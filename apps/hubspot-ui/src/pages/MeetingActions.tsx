@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -72,6 +72,8 @@ const MeetingActions: React.FC = () => {
   const [cancellationReason, setCancellationReason] = useState("");
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const [refreshCooldown, setRefreshCooldown] = useState(false);
+  const cooldownTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
@@ -219,7 +221,10 @@ const MeetingActions: React.FC = () => {
       });
       return;
     }
-
+    if (refreshCooldown) return;
+    setRefreshCooldown(true);
+    if (cooldownTimeout.current) window.clearTimeout(cooldownTimeout.current);
+    cooldownTimeout.current = window.setTimeout(() => setRefreshCooldown(false), 10000);
     setIsRefreshing(true);
     try {
       // Get the refreshed meetings data
@@ -484,11 +489,11 @@ const MeetingActions: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 w-full">
               <Button
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isRefreshing || refreshCooldown}
                 className={cn(
                   buttonVariants({ size: 'default' }),
                   "w-full bg-green-600 text-primary-foreground hover:bg-green-700 focus-visible:ring-green-500",
-                  isRefreshing && "opacity-50 cursor-not-allowed"
+                  (isRefreshing || refreshCooldown) && "opacity-50 cursor-not-allowed"
                 )}
               >
                 {isRefreshing ? (
