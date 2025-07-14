@@ -1460,7 +1460,13 @@ app.post('/api/hubspot/tasks/create', async (req, res) => {
   const taskPayload = {
     properties: {
       hs_timestamp: taskDate,
-      hs_task_body: req.body.taskBody?.trim() || `Followup with the restaurant ${companyName} (${meetingId})`,
+      hs_task_body: (() => {
+        const subject = req.body.hs_task_subject || req.body.subjectOverride || '';
+        const isCancellation = subject.toLowerCase().includes('cancellation task');
+        const prefix = isCancellation ? 'Cancellation Task' : 'Follow-Up Task';
+        const note = req.body.taskBody?.trim();
+        return note ? `${prefix}\n\n${note}` : prefix;
+      })(),
       hubspot_owner_id: ownerId,
       hs_task_subject: req.body.hs_task_subject || req.body.subjectOverride || `Followup Task - ${companyName}`,
       hs_task_status: "NOT_STARTED",

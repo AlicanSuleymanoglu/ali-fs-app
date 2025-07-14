@@ -55,6 +55,19 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
   const isPastDue = task.dueDate && isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), new Date());
 
+  // Extract user note from task.body (after the standard prefix)
+  let userNote = '';
+  if (task.body) {
+    const lower = task.body.toLowerCase();
+    if (lower.startsWith('follow-up task')) {
+      userNote = task.body.slice('Follow-Up Task'.length).trim();
+    } else if (lower.startsWith('cancellation task')) {
+      userNote = task.body.slice('Cancellation Task'.length).trim();
+    }
+    // Remove leading newlines if present
+    userNote = userNote.replace(/^\n+/, '');
+  }
+
   const handleCardClick = () => {
     setIsDialogOpen(true);
     if (onClick) onClick();
@@ -332,6 +345,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                 <Clock size={16} className="text-red-600" />
                 <span>This task is overdue</span>
               </p>
+            )}
+            {userNote && (
+              <div className="pt-2">
+                <span className="font-medium">Notes:</span>
+                <div className="whitespace-pre-line mt-1">{userNote}</div>
+              </div>
             )}
           </div>
 
