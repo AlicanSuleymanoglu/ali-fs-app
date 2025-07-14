@@ -211,7 +211,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
   const markDealAsClosedLost = async (dealId: string, reason: string) => {
     try {
       let reattemptDateUnix: number | null = null;
-      if (REASONS_REQUIRING_DATE.includes(reason) && reattemptDate) {
+      if (reattemptDate) {
         const midnightUTC = new Date(Date.UTC(
           reattemptDate.getFullYear(),
           reattemptDate.getMonth(),
@@ -255,10 +255,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
     // No extra text required for 'Other' reason
 
-    if (REASONS_REQUIRING_DATE.includes(disqualifyReason) && !reattemptDate) {
-      toast.error("Please select a reattempt date");
-      return;
-    }
+    // Reattempt date is now optional
 
     // Disqualify the task
     if (onDisqualify) {
