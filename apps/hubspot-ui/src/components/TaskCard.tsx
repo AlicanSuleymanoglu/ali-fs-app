@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Phone, X, Calendar as CalendarIcon, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Calendar, Phone, X, Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Info } from 'lucide-react';
 import { format, isPast, isSameDay } from 'date-fns';
 import { Task } from '../types/index.ts';
 import { Card, CardContent } from '../components/ui/card.tsx';
@@ -512,7 +512,19 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
 
             {REASONS_REQUIRING_DATE.includes(disqualifyReason) && (
               <div className="space-y-2">
-                <Label htmlFor="reattempt-date">Reattempt Date</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="reattempt-date">Reattempt Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="p-0 m-0 bg-transparent border-0 cursor-pointer text-muted-foreground hover:text-foreground">
+                        <Info className="h-4 w-4" aria-label="Info" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="max-w-xs text-sm p-3">
+                      The reattempt date is optional. Set it if you think a follow-up with this restaurant should be scheduled at a later time.
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
