@@ -253,10 +253,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
       return;
     }
 
-    if (disqualifyReason === "Other" && !otherReason) {
-      toast.error("Please provide details for the other reason");
-      return;
-    }
+    // No extra text required for 'Other' reason
 
     if (REASONS_REQUIRING_DATE.includes(disqualifyReason) && !reattemptDate) {
       toast.error("Please select a reattempt date");
@@ -267,8 +264,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     if (onDisqualify) {
       onDisqualify(
         task.id,
-        disqualifyReason,
-        disqualifyReason === "Other" ? otherReason : undefined
+        disqualifyReason
       );
     }
 
@@ -276,7 +272,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     if (task.dealId) {
       await markDealAsClosedLost(
         task.dealId,
-        disqualifyReason === "Other" ? otherReason : disqualifyReason
+        disqualifyReason
       );
     } else if (onComplete) {
       await onComplete(task.id);
@@ -516,18 +512,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
                 </SelectContent>
               </Select>
             </div>
-
-            {disqualifyReason === "Other" && (
-              <div className="space-y-2">
-                <Label htmlFor="other-reason">Closed Lost Reason - Other</Label>
-                <Input
-                  id="other-reason"
-                  value={otherReason}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOtherReasonChange(e)}
-                  placeholder="Please specify the reason"
-                />
-              </div>
-            )}
 
             {REASONS_REQUIRING_DATE.includes(disqualifyReason) && (
               <div className="space-y-2">
