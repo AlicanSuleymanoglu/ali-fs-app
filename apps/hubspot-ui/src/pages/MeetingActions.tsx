@@ -29,6 +29,7 @@ import { cn } from '../lib/utils.ts'; // Added cn
 import { toast } from '../components/ui/use-toast.ts';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover.tsx';
 import { Input } from '../components/ui/input.tsx';
+import CreateTaskDialog from '../components/CreateTaskDialog.tsx';
 
 // Add type for meeting
 interface Meeting {
@@ -74,6 +75,9 @@ const MeetingActions: React.FC = () => {
   const [cancelError, setCancelError] = useState("");
   const [refreshCooldown, setRefreshCooldown] = useState(false);
   const cooldownTimeout = useRef<number | null>(null);
+  const [showCancelTaskPrompt, setShowCancelTaskPrompt] = useState(false);
+  const [showCancelTaskDialog, setShowCancelTaskDialog] = useState(false);
+  const [cancelTaskPrefill, setCancelTaskPrefill] = useState<{ restaurantName: string; companyId: string; contactId: string; dealId: string; companyName: string; } | null>(null);
 
   useEffect(() => {
     const foundMeeting = meetings.find(m => m.id === id);
@@ -125,18 +129,16 @@ const MeetingActions: React.FC = () => {
       if (user?.user_id) {
         await refreshMeetings(user.user_id, setMeetings);
       }
-      navigate('/meeting-canceled', {
-        state: {
-          meetingDetails: {
-            companyId: meetingDetails.companyId,
-            companyName: meetingDetails.companyName,
-            companyAddress: meetingDetails.address,
-            contactId: meetingDetails.contactId,
-            contactName: meetingDetails.contactName,
-            dealId: meetingDetails.dealId,
-          }
-        }
+      // Prompt for cancellation follow-up task
+      setCancelTaskPrefill({
+        restaurantName: meetingDetails.companyName || '',
+        companyId: meetingDetails.companyId || '',
+        contactId: meetingDetails.contactId || '',
+        dealId: meetingDetails.dealId || '',
+        companyName: meetingDetails.companyName || '',
       });
+      setShowCancelTaskPrompt(true);
+      // Don't navigate yet; wait for user to answer prompt
     } catch (err) {
       setCancelError("Failed to cancel meeting. Please try again.");
     } finally {
@@ -470,6 +472,115 @@ const MeetingActions: React.FC = () => {
           </form>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Prompt for cancellation follow-up task */}
+      <AlertDialog open={showCancelTaskPrompt} onOpenChange={setShowCancelTaskPrompt}>
+        <AlertDialogContent className="max-w-[350px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <Clock className="text-green-600 mr-2 h-5 w-5" />
+              Add Cancellation Follow-Up Task?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Would you like to create a follow-up task to check in with {cancelTaskPrefill?.restaurantName} at a later date?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowCancelTaskPrompt(false);
+              navigate('/meeting-canceled', {
+                state: {
+                  meetingDetails: {
+                    companyId: meetingDetails.companyId,
+                    companyName: meetingDetails.companyName,
+                    companyAddress: meetingDetails.address,
+                    contactId: meetingDetails.contactId,
+                    contactName: meetingDetails.contactName,
+                    dealId: meetingDetails.dealId,
+                  }
+                }
+              });
+            }}>No, just cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowCancelTaskPrompt(false);
+              setShowCancelTaskDialog(true);
+            }} className="bg-green-600 hover:bg-green-700 text-white">Yes, add follow-up task</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Cancellation Task Dialog */}
+      <CreateTaskDialog
+        isOpen={showCancelTaskDialog}
+        onOpenChange={(open) => {
+          setShowCancelTaskDialog(open);
+          if (!open) {
+            navigate('/meeting-canceled', {
+              state: {
+                meetingDetails: {
+                  companyId: meetingDetails.companyId,
+                  companyName: meetingDetails.companyName,
+                  companyAddress: meetingDetails.address,
+                  contactId: meetingDetails.contactId,
+                  contactName: meetingDetails.contactName,
+                  dealId: meetingDetails.dealId,
+                }
+              }
+            });
+          }
+        }}
+        onCreateTask={async ({ restaurantName, moreInfo, dueDate }) => {
+          if (!cancelTaskPrefill || !user?.user_id) return;
+          // Compose payload for cancellation task
+          const dateObj = new Date(dueDate);
+          dateObj.setHours(9, 0, 0, 0);
+          const unixMillis = dateObj.getTime();
+          const payload = {
+            taskDate: unixMillis,
+            companyId: cancelTaskPrefill.companyId,
+            contactId: cancelTaskPrefill.contactId,
+            dealId: cancelTaskPrefill.dealId,
+            companyName: cancelTaskPrefill.companyName,
+            ownerId: user.user_id,
+            meetingId: id,
+            taskBody: moreInfo?.trim() || undefined,
+            subjectOverride: `Cancellation Task - ${restaurantName}`,
+          };
+          try {
+            const res = await fetch(`${BASE_URL}/api/hubspot/tasks/create`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...payload, hs_task_subject: `Cancellation Task - ${restaurantName}` })
+            });
+            if (!res.ok) throw new Error('Failed to create cancellation task');
+            toast({
+              title: 'Cancellation Task Created',
+              description: `A follow-up task for ${restaurantName} was created.`,
+              variant: 'default',
+            });
+            setShowCancelTaskDialog(false);
+            navigate('/meeting-canceled', {
+              state: {
+                meetingDetails: {
+                  companyId: meetingDetails.companyId,
+                  companyName: meetingDetails.companyName,
+                  companyAddress: meetingDetails.address,
+                  contactId: meetingDetails.contactId,
+                  contactName: meetingDetails.contactName,
+                  dealId: meetingDetails.dealId,
+                }
+              }
+            });
+          } catch (err) {
+            toast({
+              title: 'Failed to Create Task',
+              description: 'Could not create cancellation follow-up task.',
+              variant: 'destructive',
+            });
+          }
+        }}
+        // Prefill restaurant name
+        {...(cancelTaskPrefill ? { defaultRestaurantName: cancelTaskPrefill.restaurantName } : {})}
+      />
 
       {/* Validation Dialog - Prettier version */}
       <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>

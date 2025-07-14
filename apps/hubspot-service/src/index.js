@@ -1139,13 +1139,22 @@ app.post('/api/tasks', async (req, res) => {
 
   try {
     const response = await axios.post('https://api.hubapi.com/crm/v3/objects/tasks/search', {
-      filterGroups: [{
-        filters: [
-          { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
-          { propertyName: "hs_task_status", operator: "NEQ", value: "COMPLETED" },
-          { propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: "Followup Task" }
-        ]
-      }],
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+            { propertyName: "hs_task_status", operator: "NEQ", value: "COMPLETED" },
+            { propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: "Followup Task" }
+          ]
+        },
+        {
+          filters: [
+            { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+            { propertyName: "hs_task_status", operator: "NEQ", value: "COMPLETED" },
+            { propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: "Cancellation Task" }
+          ]
+        }
+      ],
       properties: [
         "hs_object_id",
         "hs_task_subject",
@@ -1453,7 +1462,7 @@ app.post('/api/hubspot/tasks/create', async (req, res) => {
       hs_timestamp: taskDate,
       hs_task_body: req.body.taskBody?.trim() || `Followup with the restaurant ${companyName} (${meetingId})`,
       hubspot_owner_id: ownerId,
-      hs_task_subject: `Followup Task - ${companyName}`,
+      hs_task_subject: req.body.hs_task_subject || req.body.subjectOverride || `Followup Task - ${companyName}`,
       hs_task_status: "NOT_STARTED",
       hs_task_priority: "MEDIUM",
       hs_task_type: "CALL",

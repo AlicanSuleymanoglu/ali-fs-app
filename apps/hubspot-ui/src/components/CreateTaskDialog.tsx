@@ -18,17 +18,26 @@ interface CreateTaskDialogProps {
     moreInfo?: string;
     dueDate: string;
   }) => void;
+  defaultRestaurantName?: string;
 }
 
 const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   isOpen,
   onOpenChange,
   onCreateTask,
+  defaultRestaurantName = '',
 }) => {
-  const [newTaskCompany, setNewTaskCompany] = useState('');
+  const [newTaskCompany, setNewTaskCompany] = useState(defaultRestaurantName);
   const [moreInfo, setMoreInfo] = useState('');
   const [followUpDate, setFollowUpDate] = useState<Date | undefined>(undefined);
   const [customDateMode, setCustomDateMode] = useState(false);
+
+  // Update newTaskCompany if defaultRestaurantName changes (e.g., dialog opened for a different company)
+  React.useEffect(() => {
+    if (isOpen) {
+      setNewTaskCompany(defaultRestaurantName);
+    }
+  }, [defaultRestaurantName, isOpen]);
 
   const handleCreateTask = () => {
     if (!newTaskCompany || !followUpDate) {
@@ -43,7 +52,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
     });
 
     // Reset form
-    setNewTaskCompany('');
+    setNewTaskCompany(defaultRestaurantName || '');
     setMoreInfo('');
     setFollowUpDate(undefined);
     setCustomDateMode(false);
@@ -60,7 +69,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   };
 
   const handleSelectCustomDate = () => setCustomDateMode(true);
-  
+
   const handleCancelTask = () => {
     onOpenChange(false);
     setNewTaskCompany('');

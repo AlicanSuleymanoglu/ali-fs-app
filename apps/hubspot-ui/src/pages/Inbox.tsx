@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const Inbox: React.FC = () => {
   const navigate = useNavigate();
   const { tasks, markAsRead, markAsCompleted, disqualifyTask } = useTasks();
-  const [activeTab, setActiveTab] = useState("incomplete");
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'followup' | 'cancellation'>('all');
 
   // Sort tasks by due date (earliest first)
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -24,6 +24,12 @@ const Inbox: React.FC = () => {
   const seen = new Map();
   for (const task of sortedTasks) {
     if (task.completed || task.disqualified) continue;
+    const subject = task.subject?.toLowerCase() || '';
+    const isFollowup = subject.includes('followup task');
+    const isCancellation = subject.includes('cancellation task');
+    if (taskTypeFilter === 'followup' && !isFollowup) continue;
+    if (taskTypeFilter === 'cancellation' && !isCancellation) continue;
+    if (taskTypeFilter === 'all' && !(isFollowup || isCancellation)) continue;
     const companyId = task.companyId || 'unknown';
     const dueDate = task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : 'unknown'; // YYYY-MM-DD
     const key = `${companyId}_${dueDate}`;
@@ -66,6 +72,31 @@ const Inbox: React.FC = () => {
         <h2 className="text-xl font-semibold">My Inbox</h2>
       </div>
 
+      {/* Task type filter */}
+      <div className="flex gap-2 mb-4">
+        <Button
+          variant={taskTypeFilter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setTaskTypeFilter('all')}
+        >
+          All
+        </Button>
+        <Button
+          variant={taskTypeFilter === 'followup' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setTaskTypeFilter('followup')}
+        >
+          Followup Tasks
+        </Button>
+        <Button
+          variant={taskTypeFilter === 'cancellation' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setTaskTypeFilter('cancellation')}
+        >
+          Cancellation Tasks
+        </Button>
+      </div>
+
       <div className="mt-4">
         <div className="space-y-4">
           {incompleteTasks.length > 0 ? (
@@ -80,7 +111,7 @@ const Inbox: React.FC = () => {
             ))
           ) : (
             <p className="text-center py-10 text-muted-foreground">
-              No incomplete tasks at the moment. Great job keeping your inbox clean!
+              No tasks at the moment. Great job keeping your inbox clean!
             </p>
           )}
         </div>
