@@ -1129,7 +1129,6 @@ app.post('/api/meeting/:id/mark-completed', async (req, res) => {
 
 
 
-// Fetch all tasks for the logged-in user (salesperson)
 app.post('/api/tasks', async (req, res) => {
   const token = req.session.accessToken;
   if (!token) return res.status(401).send('Not authenticated');
@@ -1138,7 +1137,8 @@ app.post('/api/tasks', async (req, res) => {
   console.log("📩 Incoming task fetch body:", req.body);
 
   try {
-    const response = await axios.post('https://api.hubapi.com/crm/v3/objects/tasks/search', {
+    // === 1. Search for tasks ===
+    const taskSearch = await axios.post('https://api.hubapi.com/crm/v3/objects/tasks/search', {
       filterGroups: [
         {
           filters: [
@@ -1170,100 +1170,111 @@ app.post('/api/tasks', async (req, res) => {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log("🟢 Tasks fetched:", response.data.results.length);
+    const tasks = taskSearch.data.results;
+    console.log("🟢 Tasks fetched:", tasks.length);
+    const taskIds = tasks.map(t => t.id).filter(Boolean); // removes undefined, null, empty
 
-    const tasks = await Promise.all(response.data.results.map(async (task) => {
+    // === 2. Fetch company and contact associations in batch (v4) ===
+    const [companyAssocRes, contactAssocRes] = await Promise.all([
+      axios.post(`https://api.hubapi.com/crm/v4/associations/task/company/batch/read`, {
+        inputs: taskIds.map(id => ({ id }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      axios.post(`https://api.hubapi.com/crm/v4/associations/task/contact/batch/read`, {
+        inputs: taskIds.map(id => ({ id }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
+
+    // Log association responses for debugging
+    console.log('Company association response:', JSON.stringify(companyAssocRes.data, null, 2));
+    console.log('Contact association response:', JSON.stringify(contactAssocRes.data, null, 2));
+
+    const companyAssocMap = {};
+    const contactAssocMap = {};
+
+    for (const row of companyAssocRes.data.results) {
+      if (row.to?.length) companyAssocMap[row.from.id] = row.to[0].toObjectId || row.to[0].id;
+    }
+    for (const row of contactAssocRes.data.results) {
+      if (row.to?.length) contactAssocMap[row.from.id] = row.to[0].toObjectId || row.to[0].id;
+    }
+
+    const uniqueCompanyIds = [...new Set(Object.values(companyAssocMap))];
+    const uniqueContactIds = [...new Set(Object.values(contactAssocMap))];
+
+    // === 3. Fetch company and contact details in batch ===
+    const [companyDetailsRes, contactDetailsRes] = await Promise.all([
+      uniqueCompanyIds.length > 0
+        ? axios.post(`https://api.hubapi.com/crm/v3/objects/companies/batch/read`, {
+          properties: ['name', 'industry'],
+          inputs: uniqueCompanyIds.map(id => ({ id }))
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        : { data: { results: [] } },
+      uniqueContactIds.length > 0
+        ? axios.post(`https://api.hubapi.com/crm/v3/objects/contacts/batch/read`, {
+          properties: ['firstname', 'lastname', 'email', 'phone'],
+          inputs: uniqueContactIds.map(id => ({ id }))
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        : { data: { results: [] } }
+    ]);
+
+    const companyDetailsMap = {};
+    const contactDetailsMap = {};
+
+    for (const c of companyDetailsRes.data.results) {
+      companyDetailsMap[c.id] = c.properties;
+    }
+    for (const c of contactDetailsRes.data.results) {
+      contactDetailsMap[c.id] = c.properties;
+    }
+
+    // === 4. Construct enriched tasks ===
+    const enrichedTasks = tasks.map(task => {
       const taskId = task.id;
-      let restaurantName = 'Unknown Restaurant';
-      let contactName = '';
-      let email = '';
-      let phoneNumber = '';
-      let cuisine = '';
-      let dealId = '';
-      let companyId = '';
-      let contactId = '';
-      let meetingId = '';
-      console.log("📦 HubSpot Task Properties:", task.properties);
+      const companyId = companyAssocMap[taskId];
+      const contactId = contactAssocMap[taskId];
 
-
-      // === 🔗 Fetch associated company ===
-      try {
-        const assocCompany = await axios.get(
-          `https://api.hubapi.com/crm/v3/objects/tasks/${taskId}/associations/companies`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        companyId = assocCompany.data.results?.[0]?.id;
-
-        if (companyId) {
-          const companyDetails = await axios.get(
-            `https://api.hubapi.com/crm/v3/objects/companies/${companyId}?properties=name,industry`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          restaurantName = companyDetails.data.properties.name || restaurantName;
-          cuisine = companyDetails.data.properties.industry || '';
-
-          // ✅ Fetch associated deals from company
-          try {
-            const assocDeals = await axios.get(
-              `https://api.hubapi.com/crm/v3/objects/companies/${companyId}/associations/deals`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            dealId = assocDeals.data.results?.[0]?.id || '';
-            console.log(`🔗 Found deal ${dealId} for company ${companyId}`);
-          } catch (err) {
-            console.warn(`⚠️ No deal found for company ${companyId}`);
-          }
-        }
-      } catch (err) {
-        console.warn(`⚠️ No company for task ${taskId}`);
-      }
-
-      // === 📞 Fetch associated contact ===
-      try {
-        const assocContact = await axios.get(
-          `https://api.hubapi.com/crm/v3/objects/tasks/${taskId}/associations/contacts`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        contactId = assocContact.data.results?.[0]?.id;
-
-        if (contactId) {
-          const contactDetails = await axios.get(
-            `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname,email,phone`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          contactName = `${contactDetails.data.properties.firstname || ''} ${contactDetails.data.properties.lastname || ''}`.trim();
-          email = contactDetails.data.properties.email || '';
-          phoneNumber = contactDetails.data.properties.phone || '';
-        }
-      } catch (err) {
-        console.warn(`⚠️ No contact for task ${taskId}`);
-      }
+      const company = companyDetailsMap[companyId] || {};
+      const contact = contactDetailsMap[contactId] || {};
 
       return {
         id: taskId,
         subject: task.properties.hs_task_subject,
-        contactName,
-        restaurantName,
-        cuisine,
-        phoneNumber,
-        dealId,
-        email,
         body: task.properties.hs_task_body || "",
         status: task.properties.hs_task_status,
         dueDate: task.properties.hs_task_due_date || task.properties.hs_timestamp,
         createdAt: task.properties.hs_timestamp,
         ownerId: task.properties.hubspot_owner_id,
-        companyId,
-        contactId,
-      };
-    }));
 
-    res.json({ tasks });
+        restaurantName: company.name || 'Unknown Restaurant',
+        cuisine: company.industry || '',
+        companyId,
+
+        contactId,
+        contactName: `${contact.firstname || ''} ${contact.lastname || ''}`.trim(),
+        email: contact.email || '',
+        phoneNumber: contact.phone || '',
+
+        dealId: '' // Optional: add deal association later if needed
+      };
+    });
+
+    res.json({ tasks: enrichedTasks });
+
   } catch (err) {
     console.error("❌ HubSpot API error:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 });
+
+
 
 
 
