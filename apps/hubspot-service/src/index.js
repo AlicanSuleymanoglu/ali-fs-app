@@ -1174,8 +1174,8 @@ app.post('/api/tasks', async (req, res) => {
     console.log("🟢 Tasks fetched:", tasks.length);
     const taskIds = tasks.map(t => t.id).filter(Boolean); // removes undefined, null, empty
 
-    // === 2. Fetch company and contact associations in batch (v4) ===
-    const [companyAssocRes, contactAssocRes] = await Promise.all([
+    // === 2. Fetch company, contact, and deal associations in batch (v4) ===
+    const [companyAssocRes, contactAssocRes, dealAssocRes] = await Promise.all([
       axios.post(`https://api.hubapi.com/crm/v4/associations/task/company/batch/read`, {
         inputs: taskIds.map(id => ({ id }))
       }, {
@@ -1185,21 +1185,31 @@ app.post('/api/tasks', async (req, res) => {
         inputs: taskIds.map(id => ({ id }))
       }, {
         headers: { Authorization: `Bearer ${token}` }
+      }),
+      axios.post(`https://api.hubapi.com/crm/v4/associations/task/deal/batch/read`, {
+        inputs: taskIds.map(id => ({ id }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       })
     ]);
 
     // Log association responses for debugging
     console.log('Company association response:', JSON.stringify(companyAssocRes.data, null, 2));
     console.log('Contact association response:', JSON.stringify(contactAssocRes.data, null, 2));
+    console.log('Deal association response:', JSON.stringify(dealAssocRes.data, null, 2));
 
     const companyAssocMap = {};
     const contactAssocMap = {};
+    const dealAssocMap = {};
 
     for (const row of companyAssocRes.data.results) {
       if (row.to?.length) companyAssocMap[row.from.id] = row.to[0].toObjectId || row.to[0].id;
     }
     for (const row of contactAssocRes.data.results) {
       if (row.to?.length) contactAssocMap[row.from.id] = row.to[0].toObjectId || row.to[0].id;
+    }
+    for (const row of dealAssocRes.data.results) {
+      if (row.to?.length) dealAssocMap[row.from.id] = row.to.map(t => t.toObjectId || t.id);
     }
 
     const uniqueCompanyIds = [...new Set(Object.values(companyAssocMap))];
@@ -1240,6 +1250,8 @@ app.post('/api/tasks', async (req, res) => {
       const taskId = task.id;
       const companyId = companyAssocMap[taskId];
       const contactId = contactAssocMap[taskId];
+      const dealIds = dealAssocMap[taskId] || [];
+      const dealId = dealIds[0] || null; // for backward compatibility
 
       const company = companyDetailsMap[companyId] || {};
       const contact = contactDetailsMap[contactId] || {};
@@ -1262,7 +1274,8 @@ app.post('/api/tasks', async (req, res) => {
         email: contact.email || '',
         phoneNumber: contact.phone || '',
 
-        dealId: '' // Optional: add deal association later if needed
+        dealId, // first dealId for backward compatibility
+        dealIds // array of all associated dealIds
       };
     });
 

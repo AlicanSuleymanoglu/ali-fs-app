@@ -134,11 +134,17 @@ const WinDealDialog: React.FC<WinDealDialogProps> = ({
                     </div>
                 )}
 
-                {step === 'reason' && task.dealId && (
-                    <ClosedWonReasonForm
-                        dealId={task.dealId}
-                        onComplete={handleReasonComplete}
-                    />
+                {step === 'reason' && (
+                    task.dealId ? (
+                        <ClosedWonReasonForm
+                            dealId={task.dealId}
+                            onComplete={handleReasonComplete}
+                        />
+                    ) : (
+                        <div className="text-red-500 text-center py-4">
+                            No Deal ID found for this task. Please check the task data.
+                        </div>
+                    )
                 )}
 
                 {step === 'success' && (
