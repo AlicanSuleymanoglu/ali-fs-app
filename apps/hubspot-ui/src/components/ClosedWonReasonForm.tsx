@@ -10,12 +10,14 @@ interface ClosedWonReasonFormProps {
   dealId: string; // Make sure you pass the correct dealId!
   onComplete: () => void;
   completing?: boolean;
+  specialRequest?: string;
 }
 
-const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onComplete, completing }) => {
+const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onComplete, completing, specialRequest: initialSpecialRequest }) => {
   const [reason, setReason] = useState<string>("");
   const [posCompetitor, setPosCompetitor] = useState<string>("");
   const [paymentCompetitor, setPaymentCompetitor] = useState<string>("");
+  const [specialRequest, setSpecialRequest] = useState<string>(initialSpecialRequest || "");
   const [loading, setLoading] = useState(false);
   const BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "";
 
@@ -43,6 +45,7 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
           closed_won_reason: reason,
           pos_competitor: posCompetitor,
           payment_competitor: paymentCompetitor,
+          special_request: specialRequest,
         }),
       });
 
@@ -171,6 +174,19 @@ const ClosedWonReasonForm: React.FC<ClosedWonReasonFormProps> = ({ dealId, onCom
                 <SelectItem value="VR Bank">VR Bank</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          {/* Special Request */}
+          <div className="space-y-2">
+            <Label htmlFor="special-request">Special Request</Label>
+            <textarea
+              id="special-request"
+              className="w-full p-2 border border-gray-300 rounded"
+              rows={3}
+              value={specialRequest}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSpecialRequest(e.target.value)}
+              placeholder="Enter any special request..."
+              disabled={loading || completing}
+            />
           </div>
         </div>
         <div className="flex justify-end pt-4">

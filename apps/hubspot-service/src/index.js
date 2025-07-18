@@ -1071,7 +1071,7 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
   if (!token) return res.status(401).send('Not authenticated');
 
   const { dealId } = req.params;
-  const { closed_won_reason, pos_competitor, payment_competitor } = req.body;
+  const { closed_won_reason, pos_competitor, payment_competitor, special_request } = req.body;
 
   // Required fields
   if (!closed_won_reason) {
@@ -1086,6 +1086,7 @@ app.patch('/api/deal/:dealId/close-won', async (req, res) => {
     // Optional competitor fields if present
     if (pos_competitor) properties.pos_competitor = pos_competitor;
     if (payment_competitor) properties.payment_competitor = payment_competitor;
+    if (special_request) properties.special_request = special_request;
 
     // HubSpot PATCH update
     const updateRes = await axios.patch(

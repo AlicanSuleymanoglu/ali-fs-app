@@ -111,7 +111,7 @@ const WinDealDialog: React.FC<WinDealDialogProps> = ({
                                 className="w-full p-2 border border-gray-300 rounded"
                                 rows={3}
                                 value={additionalNotes}
-                                onChange={(e) => setAdditionalNotes(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdditionalNotes(e.target.value)}
                                 placeholder="Add any relevant comments for the note…"
                             />
                         </div>
