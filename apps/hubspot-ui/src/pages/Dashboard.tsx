@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../hooks/useUser.ts';
 import { useTasks } from '../hooks/useTasks.ts';
-import { format, getTime, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { format, getTime, startOfWeek, endOfWeek, addWeeks, isWithinInterval, subWeeks as subWeeksDate } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
@@ -320,6 +320,81 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Handler to fetch meetings for the current date and update context
+  const handleFetchMeetingsForDay = async () => {
+    if (!user?.user_id) {
+      toast.error('User not found');
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings/by-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ownerId: user.user_id, date: currentDate.toISOString() })
+      });
+      if (!res.ok) throw new Error('Failed to fetch meetings for date');
+      const data = await res.json();
+      const hubspotMeetings = (data.results || []).map((item: any) => {
+        let cleanNotes = item.internalNotes || '';
+        if (cleanNotes) {
+          cleanNotes = cleanNotes
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+        return {
+          id: item.id,
+          title: item.title,
+          contactName: item.contactName,
+          companyName: item.companyName,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          date: item.date,
+          type: item.type,
+          status: item.status,
+          address: item.address,
+          dealId: item.dealId,
+          companyId: item.companyId,
+          contactId: item.contactId,
+          contactPhone: item.contactPhone,
+          internalNotes: cleanNotes,
+          companies: item.companies,
+          deals: item.deals,
+          companyCount: item.companyCount,
+          dealCount: item.dealCount,
+          contractUploaded: item.contractUploaded,
+        };
+      });
+      setMeetings(hubspotMeetings);
+      toast.success('Meetings for this day fetched and context updated');
+    } catch (err) {
+      toast.error('Failed to fetch meetings for this day');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Determine if the selected week is supported (current, previous, or next week)
+  const today = new Date();
+  const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const rangeStart = subWeeksDate(currentWeekStart, 1);
+  const rangeEnd = addWeeks(currentWeekStart, 1);
+  rangeEnd.setDate(rangeEnd.getDate() + 6);
+  rangeEnd.setHours(23, 59, 59, 999);
+  const selectedWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const selectedWeekEnd = new Date(selectedWeekStart);
+  selectedWeekEnd.setDate(selectedWeekStart.getDate() + 6);
+  selectedWeekEnd.setHours(23, 59, 59, 999);
+  const isDisplayedWeekSupported =
+    isWithinInterval(selectedWeekStart, { start: rangeStart, end: rangeEnd }) &&
+    isWithinInterval(selectedWeekEnd, { start: rangeStart, end: rangeEnd });
+
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
   }
@@ -353,20 +428,22 @@ const Dashboard: React.FC = () => {
         onFetchedMeetings={(meetings) => setMeetings(meetings)}
         actionButton={
           <div className="flex items-center gap-2">
-            <Button
-              onClick={handleRefresh}
-              variant="outline"
-              size="sm"
-              className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${isRefreshCooldown
-                ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                : "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
-                }`}
-              disabled={isRefreshing || isRefreshCooldown}
-              title={isRefreshCooldown ? "Please wait 10 seconds before refreshing again" : "Refresh meetings"}
-            >
-              <RefreshCw size={14} className={`${isRefreshCooldown ? "text-gray-400" : "text-blue-600"} ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
-            </Button>
+            {isDisplayedWeekSupported && (
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                size="sm"
+                className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${isRefreshCooldown
+                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                  }`}
+                disabled={isRefreshing || isRefreshCooldown}
+                title={isRefreshCooldown ? "Please wait 10 seconds before refreshing again" : "Refresh meetings"}
+              >
+                <RefreshCw size={14} className={`${isRefreshCooldown ? "text-gray-400" : "text-blue-600"} ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
+              </Button>
+            )}
             <Button
               onClick={handleOpenMapsRoute}
               variant="outline"
@@ -381,6 +458,18 @@ const Dashboard: React.FC = () => {
               <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
               <span className="text-xs font-medium">Route</span>
             </Button>
+            {!isDisplayedWeekSupported && (
+              <Button
+                onClick={handleFetchMeetingsForDay}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 h-6 px-2 rounded-full"
+                title="Fetch Meetings"
+              >
+                <RefreshCw size={14} />
+                <span className="text-xs font-medium">Fetch Meetings</span>
+              </Button>
+            )}
           </div>
         }
       />

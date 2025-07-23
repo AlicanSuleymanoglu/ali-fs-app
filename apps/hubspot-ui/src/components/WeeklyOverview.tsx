@@ -113,7 +113,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
     >
       {!isDisplayedWeekSupported && (
         <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 text-xs rounded text-center">
-          Only meetings from last, this, and next week are shown.
+          You can fetch meetings for this day by clicking the "Fetch Meetings" button.
         </div>
       )}
 
@@ -127,18 +127,6 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
               aria-label="Go to today"
             >
               <Calendar className="h-5 w-5" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center">
-          {onFindMeetings && (
-            <button
-              onClick={onFindMeetings}
-              className="flex items-center gap-2 rounded-full px-3 py-1 text-blue-600 hover:text-blue-800 border border-transparent hover:border-blue-200 shadow-md md:px-4 md:py-1.5 bg-white"
-              title="Find Meetings"
-            >
-              <Search className="h-4 w-4 md:h-5 md:w-5" />
-              <span className="text-sm font-medium">Find Meetings</span>
             </button>
           )}
         </div>

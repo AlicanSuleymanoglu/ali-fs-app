@@ -94,7 +94,9 @@ const AddMeeting: React.FC = () => {
 
     const company = selectedCompany?.name || prefilledData.companyName || "Unknown Company";
     const meetingTypeLabel = meetingType === "Sales Meeting" ? "Sales Meeting" : "Sales Followup";
-    const title = `${meetingTypeLabel}`;
+    const title = isFollowUp
+      ? `Sales Followup with ${company}`
+      : meetingTypeLabel;
 
     // Calculate start/end
     const meetingDate = new Date(date);
