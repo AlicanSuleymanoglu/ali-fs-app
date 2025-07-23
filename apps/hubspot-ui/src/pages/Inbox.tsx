@@ -8,11 +8,13 @@ import { useTasks } from '../hooks/useTasks.ts';
 import { Button } from "../components/ui/button.tsx";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "../components/ui/input.tsx";
 
 const Inbox: React.FC = () => {
   const navigate = useNavigate();
   const { tasks, markAsRead, markAsCompleted, disqualifyTask } = useTasks();
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'followup' | 'cancellation'>('all');
+  const [search, setSearch] = useState("");
 
   // Sort tasks by due date (earliest first)
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -38,6 +40,13 @@ const Inbox: React.FC = () => {
       incompleteTasks.push(task);
     }
   }
+
+  // Filter by restaurant name search
+  const filteredTasks = search.trim().length > 0
+    ? incompleteTasks.filter(task =>
+      (task.restaurantName || '').toLowerCase().includes(search.trim().toLowerCase())
+    )
+    : incompleteTasks;
 
   const handleTaskClick = (taskId: string) => {
     markAsRead(taskId);
@@ -72,6 +81,17 @@ const Inbox: React.FC = () => {
         <h2 className="text-xl font-semibold">My Inbox</h2>
       </div>
 
+      {/* Search bar */}
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search by restaurant name..."
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
+
       {/* Task type filter */}
       <div className="flex gap-2 mb-4">
         <Button
@@ -99,8 +119,8 @@ const Inbox: React.FC = () => {
 
       <div className="mt-4">
         <div className="space-y-4">
-          {incompleteTasks.length > 0 ? (
-            incompleteTasks.map(task => (
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map(task => (
               <TaskCard
                 key={task.id}
                 task={task}
