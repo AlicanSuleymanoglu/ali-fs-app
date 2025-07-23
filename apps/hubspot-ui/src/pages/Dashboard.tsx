@@ -33,6 +33,7 @@ const Dashboard: React.FC = () => {
   const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null);
   const [modalMeetings, setModalMeetings] = useState<Meeting[]>([]);
   const [isModalLoading, setIsModalLoading] = useState(false);
+  const [isFetchCooldown, setIsFetchCooldown] = useState(false);
   const location = useLocation();
 
   // Use the date from navigation state if available
@@ -326,6 +327,8 @@ const Dashboard: React.FC = () => {
       toast.error('User not found');
       return;
     }
+    if (isFetchCooldown) return;
+    setIsFetchCooldown(true);
     setIsRefreshing(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings/by-date`, {
@@ -377,6 +380,7 @@ const Dashboard: React.FC = () => {
       toast.error('Failed to fetch meetings for this day');
     } finally {
       setIsRefreshing(false);
+      setTimeout(() => setIsFetchCooldown(false), 10000);
     }
   };
 
@@ -444,6 +448,20 @@ const Dashboard: React.FC = () => {
                 <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
               </Button>
             )}
+            {/* Swap order: Fetch Meetings first, then Route */}
+            {!isDisplayedWeekSupported && (
+              <Button
+                onClick={handleFetchMeetingsForDay}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 h-6 px-2 rounded-full"
+                title={isFetchCooldown ? "Please wait 10 seconds before fetching again" : "Fetch Meetings"}
+                disabled={isFetchCooldown}
+              >
+                <RefreshCw size={14} />
+                <span className="text-xs font-medium">Fetch Meetings</span>
+              </Button>
+            )}
             <Button
               onClick={handleOpenMapsRoute}
               variant="outline"
@@ -458,18 +476,6 @@ const Dashboard: React.FC = () => {
               <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
               <span className="text-xs font-medium">Route</span>
             </Button>
-            {!isDisplayedWeekSupported && (
-              <Button
-                onClick={handleFetchMeetingsForDay}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1 h-6 px-2 rounded-full"
-                title="Fetch Meetings"
-              >
-                <RefreshCw size={14} />
-                <span className="text-xs font-medium">Fetch Meetings</span>
-              </Button>
-            )}
           </div>
         }
       />
