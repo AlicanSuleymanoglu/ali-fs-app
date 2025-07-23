@@ -329,6 +329,7 @@ const Dashboard: React.FC = () => {
         };
       });
       setModalMeetings(hubspotMeetings);
+      setMeetings(hubspotMeetings);
     } catch (err) {
       toast.error('Failed to fetch meetings for date');
     } finally {
