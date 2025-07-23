@@ -22,6 +22,7 @@ import { Button } from '../components/ui/button.tsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';
 import { Calendar } from '../components/ui/calendar.tsx';
 import MeetingCard from '../components/MeetingCard.tsx';
+import { UserCircle } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
   const [modalMeetings, setModalMeetings] = useState<Meeting[]>([]);
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [isFetchCooldown, setIsFetchCooldown] = useState(false);
+  const [lightMeetings, setLightMeetings] = useState([]);
   const location = useLocation();
 
   // Use the date from navigation state if available
@@ -47,6 +49,27 @@ const Dashboard: React.FC = () => {
   const user = useUser();
   const { tasks, markAsRead, markAsCompleted, disqualifyTask, createTask } = useTasks();
   const { meetings, setMeetings } = useMeetingContext();
+
+  // Fetch light meetings for orange dots
+  useEffect(() => {
+    const fetchLightMeetings = async () => {
+      if (!user?.user_id) return;
+      try {
+        const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ownerId: user.user_id, lightMode: true })
+        });
+        if (!res.ok) throw new Error('Failed to fetch light meetings');
+        const data = await res.json();
+        setLightMeetings(data.results || []);
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchLightMeetings();
+  }, [user?.user_id]);
 
   const handleDateSelect = (date: Date) => setCurrentDate(date);
   const handleTaskClick = (taskId: string) => markAsRead(taskId);
@@ -412,7 +435,7 @@ const Dashboard: React.FC = () => {
           meetings={meetings}
           tasks={tasks}
           onDateSelect={handleDateSelect}
-          onFindMeetings={() => setIsDateModalOpen(true)}
+          meetingCounts={lightMeetings}
         />
       </div>
 

@@ -25,6 +25,7 @@ interface WeeklyOverviewProps {
   meetings: Meeting[];
   onDateSelect: (date: Date) => void;
   onFindMeetings?: () => void;
+  meetingCounts?: Array<{ id: string; startTime: string | number; status?: string }>;
 }
 
 const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
@@ -32,7 +33,8 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   tasks,
   meetings,
   onDateSelect,
-  onFindMeetings
+  onFindMeetings,
+  meetingCounts
 }) => {
   const { meetings: contextMeetings } = useMeetingContext();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -58,11 +60,18 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   }, [displayedWeek]);
 
   const getMeetingsForDay = (date: Date) => {
-    const allMeetings = meetings.length > 0 ? meetings : contextMeetings;
-    return allMeetings.filter(meeting => {
-      const meetingDate = new Date(meeting.startTime);
-      return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
-    });
+    if (meetingCounts && meetingCounts.length > 0) {
+      return meetingCounts.filter(meeting => {
+        const meetingDate = new Date(meeting.startTime);
+        return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
+      });
+    } else {
+      const allMeetings = meetings.length > 0 ? meetings : contextMeetings;
+      return allMeetings.filter(meeting => {
+        const meetingDate = new Date(meeting.startTime);
+        return isSameDay(meetingDate, date) && meeting.status !== "CANCELED";
+      });
+    }
   };
 
   const goToPreviousWeek = () => setWeekOffset(prev => prev - 1);
