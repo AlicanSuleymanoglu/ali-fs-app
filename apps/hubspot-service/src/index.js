@@ -38,30 +38,18 @@ console.log('PORT:', process.env.PORT);
 
 app.use(express.json());
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 app.use(cors({
-  origin: isProduction
-    ? [
-      'https://app.allo.restaurant',
-      'https://sales.allo.restaurant'
-    ]
-    : [
-      'http://localhost:3000',
-      'http://localhost:8080'
-    ],
+  origin: ['http://localhost:3000', 'http://localhost:8080'],
   credentials: true
 }));
-
 app.use(session({
   secret: 'hubspot_secret_key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: isProduction, // true in production (HTTPS)
+    secure: false,
     httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    domain: isProduction ? '.allo.restaurant' : undefined,
+    sameSite: 'lax',
     maxAge: 12 * 60 * 60 * 1000 // 12 hours in ms
   }
 }));
