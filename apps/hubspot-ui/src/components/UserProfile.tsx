@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUser } from "../hooks/useUser.ts";
 import { User } from "lucide-react"; // User icon from lucide-react
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip.tsx";
 
 interface UserProfileProps {
   small?: boolean;
@@ -18,10 +19,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ small = false }) => {
 
   if (small) {
     return (
-      <div className="flex items-center gap-2">
-        <User className="h-4 w-4 text-blue-500" />
-        <span className="text-sm font-medium">{displayName}</span>
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <User className="h-4 w-4 text-blue-500 cursor-pointer" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">
+            <span className="text-sm font-medium">{displayName}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 

@@ -2157,3 +2157,207 @@ app.post('/api/deals/companies', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch companies for deals', details: err.response?.data || err.message });
   }
 });
+
+// Get meetings for a specific day (by date)
+app.post('/api/meetings/by-date', async (req, res) => {
+  const token = req.session.accessToken;
+  if (!token) return res.status(401).send('Not authenticated');
+
+  const { ownerId, date } = req.body;
+  if (!ownerId || !date) {
+    return res.status(400).json({ error: 'Missing ownerId or date' });
+  }
+
+  // Parse the date and get start/end of the day in ms
+  const targetDate = new Date(date);
+  if (isNaN(targetDate.getTime())) {
+    return res.status(400).json({ error: 'Invalid date format' });
+  }
+  const startTime = new Date(targetDate);
+  startTime.setHours(0, 0, 0, 0);
+  const endTime = new Date(targetDate);
+  endTime.setHours(23, 59, 59, 999);
+
+  try {
+    let meetings = [];
+    let after = undefined;
+    do {
+      const response = await axios.post(
+        'https://api.hubapi.com/crm/v3/objects/meetings/search',
+        {
+          filterGroups: [{
+            filters: [
+              { propertyName: "hubspot_owner_id", operator: "EQ", value: ownerId },
+              { propertyName: "hs_meeting_start_time", operator: "GTE", value: startTime.getTime() },
+              { propertyName: "hs_meeting_start_time", operator: "LTE", value: endTime.getTime() }
+            ]
+          }],
+          properties: [
+            "hs_object_id", "hs_timestamp", "hs_meeting_title",
+            "hubspot_owner_id", "hs_internal_meeting_notes",
+            "hs_meeting_location", "hs_meeting_start_time",
+            "hs_meeting_end_time", "hs_meeting_outcome", "hs_activity_type"
+          ],
+          limit: 100,
+          after
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      meetings.push(...response.data.results);
+      after = response.data.paging?.next?.after || undefined;
+    } while (after);
+
+    if (meetings.length === 0) {
+      return res.json({ results: [] });
+    }
+
+    // Associations and details (reuse logic from /api/meetings)
+    const meetingIds = meetings.map(m => m.id);
+    const batchSize = 10;
+    const batches = [];
+    for (let i = 0; i < meetingIds.length; i += batchSize) {
+      batches.push(meetingIds.slice(i, i + batchSize));
+    }
+
+    const [companyAssociations, contactAssociations, dealAssociations] = await Promise.all([
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/companies/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      )),
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/contacts/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      )),
+      Promise.all(batches.map(batch =>
+        axios.post(
+          'https://api.hubapi.com/crm/v4/associations/meetings/deals/batch/read',
+          { inputs: batch.map(id => ({ id })) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: { results: [] } }))
+      ))
+    ]);
+
+    const allCompanyAssociations = companyAssociations.flatMap(r => r.data.results);
+    const allContactAssociations = contactAssociations.flatMap(r => r.data.results);
+    const allDealAssociations = dealAssociations.flatMap(r => r.data.results);
+
+    const meetingToCompanyIds = new Map();
+    allCompanyAssociations.forEach(r => {
+      if (!meetingToCompanyIds.has(r.from.id)) meetingToCompanyIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToCompanyIds.get(r.from.id).push(t.toObjectId));
+    });
+    const meetingToDealIds = new Map();
+    allDealAssociations.forEach(r => {
+      if (!meetingToDealIds.has(r.from.id)) meetingToDealIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToDealIds.get(r.from.id).push(t.toObjectId));
+    });
+    const meetingToContactIds = new Map();
+    allContactAssociations.forEach(r => {
+      if (!meetingToContactIds.has(r.from.id)) meetingToContactIds.set(r.from.id, []);
+      (r.to || []).forEach(t => meetingToContactIds.get(r.from.id).push(t.toObjectId));
+    });
+
+    const companyIds = [...new Set(allCompanyAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+    const dealIds = [...new Set(allDealAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+    const contactIds = [...new Set(allContactAssociations.flatMap(r => r.to || []).map(t => t.toObjectId).filter(Boolean))];
+
+    const [companyDetails, dealDetails, contactDetails] = await Promise.all([
+      companyIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/companies/batch/read',
+        {
+          properties: ['name', 'address', 'city'],
+          inputs: companyIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } },
+      dealIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/deals/batch/read',
+        {
+          properties: ['dealname', 'dealstage', 'contract_uploaded'],
+          inputs: dealIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } },
+      contactIds.length > 0 ? axios.post(
+        'https://api.hubapi.com/crm/v3/objects/contacts/batch/read',
+        {
+          properties: ['firstname', 'lastname', 'phone'],
+          inputs: contactIds.map(id => ({ id: String(id) }))
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).catch(() => ({ data: { results: [] } })) : { data: { results: [] } }
+    ]);
+
+    const companyMap = new Map(
+      companyDetails.data.results.map(c => [c.id, {
+        id: c.id,
+        name: c.properties.name || 'Unnamed Company',
+        address: [c.properties.address, c.properties.city].filter(Boolean).join(', ') || 'Unknown Address'
+      }])
+    );
+    const dealMap = new Map(
+      dealDetails.data.results.map(d => [d.id, {
+        id: d.id,
+        name: d.properties.dealname || 'Unnamed Deal',
+        dealstage: d.properties.dealstage || null,
+        contract_uploaded: d.properties.contract_uploaded || null
+      }])
+    );
+    const contactMap = new Map(
+      contactDetails.data.results.map(c => [c.id, {
+        name: `${c.properties.firstname || ''} ${c.properties.lastname || ''}`.trim(),
+        phone: c.properties.phone || ''
+      }])
+    );
+
+    const meetingsWithDetails = meetings.map(meeting => {
+      const { id, properties } = meeting;
+      const companyIds = meetingToCompanyIds.get(id) || [];
+      const dealIds = meetingToDealIds.get(id) || [];
+      const contactIds = meetingToContactIds.get(id) || [];
+
+      const companies = companyIds.map(cid => companyMap.get(String(cid))).filter(Boolean);
+      const deals = dealIds.map(did => dealMap.get(String(did))).filter(Boolean);
+      const contacts = contactIds.map(cid => contactMap.get(String(cid))).filter(Boolean);
+
+      const company = companies[0];
+      const deal = deals[0];
+      const contact = contacts[0];
+
+      return {
+        id,
+        title: properties.hs_meeting_title || 'Untitled',
+        startTime: properties.hs_meeting_start_time,
+        endTime: properties.hs_meeting_end_time,
+        date: new Date(properties.hs_meeting_start_time).toLocaleDateString('de-DE'),
+        address: properties.hs_meeting_location || '',
+        companyAddress: company?.address || 'Unknown Address',
+        companyName: company?.name || 'Unknown Company',
+        companyId: company?.id || null,
+        contactName: contact?.name || 'Unknown Contact',
+        contactPhone: contact?.phone || '',
+        contactId: contactIds[0] || null,
+        dealId: deal?.id || null,
+        internalNotes: properties.hs_internal_meeting_notes || '',
+        status: properties.hs_meeting_outcome || 'scheduled',
+        type: properties.hs_activity_type || 'meeting',
+        companies,
+        deals,
+        companyCount: companies.length,
+        dealCount: deals.length,
+        contractUploaded: deal?.contract_uploaded || false,
+      };
+    });
+
+    res.json({ results: meetingsWithDetails });
+  } catch (err) {
+    console.error("🔥 Unexpected error (by-date):", err.stack || err.message);
+    res.status(500).json({ error: 'Failed to fetch meetings for date' });
+  }
+});

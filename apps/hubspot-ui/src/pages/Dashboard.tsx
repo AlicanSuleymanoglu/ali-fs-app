@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { useLocation } from 'react-router-dom';
-import { MapPin, RefreshCw } from 'lucide-react';
+import { MapPin, RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
 import { refreshMeetings } from '../utils/refreshMeetings.ts';
 
 
@@ -19,6 +19,9 @@ import FloatingActionButton from '../components/FloatingActionButton.tsx';
 import { Meeting } from '../components/MeetingCard.tsx';
 import UserProfile from '../components/UserProfile.tsx';
 import { Button } from '../components/ui/button.tsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';
+import { Calendar } from '../components/ui/calendar.tsx';
+import MeetingCard from '../components/MeetingCard.tsx';
 
 const Dashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -26,6 +29,10 @@ const Dashboard: React.FC = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRefreshCooldown, setIsRefreshCooldown] = useState(false);
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(null);
+  const [modalMeetings, setModalMeetings] = useState<Meeting[]>([]);
+  const [isModalLoading, setIsModalLoading] = useState(false);
   const location = useLocation();
 
   // Use the date from navigation state if available
@@ -232,7 +239,7 @@ const Dashboard: React.FC = () => {
 
   // Handle refresh cooldown
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     if (isRefreshCooldown) {
       timeoutId = setTimeout(() => {
         setIsRefreshCooldown(false);
@@ -244,6 +251,74 @@ const Dashboard: React.FC = () => {
       }
     };
   }, [isRefreshCooldown]);
+
+  // Fetch meetings for a specific date
+  const fetchMeetingsByDate = async (date: Date) => {
+    if (!user?.user_id) {
+      toast.error('User not found');
+      return;
+    }
+    setIsModalLoading(true);
+    setModalMeetings([]);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/meetings/by-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ownerId: user.user_id, date: date.toISOString() })
+      });
+      if (!res.ok) throw new Error('Failed to fetch meetings for date');
+      const data = await res.json();
+      const hubspotMeetings = (data.results || []).map((item: any) => {
+        let cleanNotes = item.internalNotes || '';
+        if (cleanNotes) {
+          cleanNotes = cleanNotes
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+        return {
+          id: item.id,
+          title: item.title,
+          contactName: item.contactName,
+          companyName: item.companyName,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          date: item.date,
+          type: item.type,
+          status: item.status,
+          address: item.address,
+          dealId: item.dealId,
+          companyId: item.companyId,
+          contactId: item.contactId,
+          contactPhone: item.contactPhone,
+          internalNotes: cleanNotes,
+          companies: item.companies,
+          deals: item.deals,
+          companyCount: item.companyCount,
+          dealCount: item.dealCount,
+          contractUploaded: item.contractUploaded,
+        };
+      });
+      setModalMeetings(hubspotMeetings);
+    } catch (err) {
+      toast.error('Failed to fetch meetings for date');
+    } finally {
+      setIsModalLoading(false);
+    }
+  };
+
+  // Handler for date selection in modal
+  const handleModalDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDateForModal(date);
+      fetchMeetingsByDate(date);
+    }
+  };
 
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
@@ -258,6 +333,7 @@ const Dashboard: React.FC = () => {
           meetings={meetings}
           tasks={tasks}
           onDateSelect={handleDateSelect}
+          onFindMeetings={() => setIsDateModalOpen(true)}
         />
       </div>
 
@@ -316,6 +392,45 @@ const Dashboard: React.FC = () => {
         onOpenChange={setIsCreateTaskDialogOpen}
         onCreateTask={handleCreateTask}
       />
+      {/* Modal for date-based meeting search */}
+      <Dialog open={isDateModalOpen} onOpenChange={(open) => {
+        setIsDateModalOpen(open);
+        if (!open) {
+          setSelectedDateForModal(null);
+          setModalMeetings([]);
+          setIsModalLoading(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Find Meetings by Date</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 p-2">
+            <Calendar
+              mode="single"
+              selected={selectedDateForModal || undefined}
+              onSelect={handleModalDateSelect}
+              disabled={undefined}
+            />
+            <div className="border-t my-2" />
+            {isModalLoading && <div className="text-center text-sm text-gray-500 py-4">Loading meetings...</div>}
+            {!isModalLoading && selectedDateForModal && (
+              <div>
+                <div className="font-semibold mb-2 text-sm text-gray-700">Meetings for {format(selectedDateForModal, 'PPP')}:</div>
+                {modalMeetings.length === 0 ? (
+                  <div className="text-gray-400 text-sm">No meetings found for this date.</div>
+                ) : (
+                  <div className="flex flex-col gap-2 max-h-64 overflow-y-auto border rounded p-2 bg-gray-50">
+                    {modalMeetings.map(meeting => (
+                      <MeetingCard key={meeting.id} meeting={meeting} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -17,7 +17,7 @@ import { useMeetingContext } from '../context/MeetingContext.tsx';
 import { Task } from '../types/index.ts';
 import { Meeting } from '../components/MeetingCard.tsx';
 import UserProfile from './UserProfile.tsx';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Search } from 'lucide-react';
 import { Button } from '../components/ui/button.tsx';
 import { useUser } from '../hooks/useUser.ts';
 
@@ -26,13 +26,15 @@ interface WeeklyOverviewProps {
   tasks: Task[];
   meetings: Meeting[];
   onDateSelect: (date: Date) => void;
+  onFindMeetings?: () => void;
 }
 
 const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
   currentDate,
   tasks,
   meetings,
-  onDateSelect
+  onDateSelect,
+  onFindMeetings
 }) => {
   const { meetings: contextMeetings, setMeetings } = useMeetingContext();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -187,7 +189,19 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
             </button>
           )}
         </div>
-        <UserProfile small />
+        <div className="flex items-center gap-3">
+          {onFindMeetings && (
+            <button
+              onClick={onFindMeetings}
+              className="flex items-center gap-2 rounded-full px-3 py-1 text-blue-600 hover:text-blue-800 border border-transparent hover:border-blue-200 shadow-md md:px-4 md:py-1.5 bg-white"
+              title="Find Meetings"
+            >
+              <Search className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="text-sm font-medium">Find Meetings</span>
+            </button>
+          )}
+          <UserProfile small />
+        </div>
       </div>
 
       <div className="grid grid-cols-9 gap-1 text-center items-center">
