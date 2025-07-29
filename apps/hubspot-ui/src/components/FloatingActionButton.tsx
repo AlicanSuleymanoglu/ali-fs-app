@@ -309,7 +309,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
                 </div>
               ) : (
                 <Button size="sm" variant="outline" className="mt-2" onClick={() => setShowAddCompanySearch(true)}>
-                  + Add more restaurants
+                  + Add more restaurants test
                 </Button>
               )}
             </div>
