@@ -23,6 +23,7 @@ import {
 import { AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMeetingContext } from '../context/MeetingContext.tsx';
+import { cleanHtmlTags } from '../lib/utils.ts';
 
 
 interface CalendarViewProps {
@@ -32,6 +33,23 @@ interface CalendarViewProps {
   onFetchedMeetings?: (meetings: Meeting[]) => void;
 }
 
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  description?: string;
+  start: {
+    dateTime?: string;
+    date?: string;
+  };
+  end: {
+    dateTime?: string;
+    date?: string;
+  };
+  location?: string;
+  htmlLink?: string;
+  hangoutLink?: string;
+}
+
 
 const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSelectMeeting }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -39,6 +57,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [meetingToCancel, setMeetingToCancel] = useState<Meeting | null>(null);
+  const [googleEvents, setGoogleEvents] = useState<GoogleEvent[]>([]);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<GoogleEvent | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -58,6 +79,36 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // Check Google Calendar connection and fetch events
+  useEffect(() => {
+    const checkGoogleConnection = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/api/google/connected`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        setGoogleConnected(data.connected);
+
+        if (data.connected) {
+          // Fetch Google Calendar events - backend now handles the date range and filtering
+          const googleResponse = await fetch(`${BASE_URL}/api/google/calendar`, {
+            credentials: 'include'
+          });
+
+          if (googleResponse.ok) {
+            const events = await googleResponse.json();
+            // Backend already filters out declined events and all-day events
+            setGoogleEvents(events);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking Google Calendar connection:', error);
+      }
+    };
+
+    checkGoogleConnection();
+  }, [currentDate, BASE_URL]);
 
   // Auto-scroll to current time when component mounts or when the current time changes
   useEffect(() => {
@@ -219,6 +270,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
       );
     }
 
+    // Add HubSpot meetings first (they have priority)
     meetings
       .filter(meeting => isSameDay(new Date(meeting.startTime), currentDate))
       .forEach(meeting => {
@@ -234,6 +286,88 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
           />
         );
       });
+
+    // Add Google Calendar events (in blue)
+    if (googleConnected) {
+      googleEvents
+        .filter(event => {
+          if (!event.start.dateTime) return false;
+          return isSameDay(new Date(event.start.dateTime), currentDate);
+        })
+        .forEach((event, index) => {
+          // Check if there's already a HubSpot meeting at this time
+          const eventStart = new Date(event.start.dateTime!);
+          const eventEnd = new Date(event.end.dateTime!);
+          const hasConflict = meetings.some(meeting => {
+            const meetingStart = new Date(meeting.startTime);
+            const meetingEnd = new Date(meeting.endTime);
+            return isSameDay(meetingStart, currentDate) &&
+              ((eventStart >= meetingStart && eventStart < meetingEnd) ||
+                (eventEnd > meetingStart && eventEnd <= meetingEnd) ||
+                (eventStart <= meetingStart && eventEnd >= meetingEnd));
+          });
+
+          // Only show Google event if there's no conflict with HubSpot meeting
+          if (!hasConflict) {
+            // Check for overlapping Google events
+            const overlappingEvents = googleEvents.filter(otherEvent => {
+              if (otherEvent.id === event.id) return false;
+              const otherStart = new Date(otherEvent.start.dateTime!);
+              const otherEnd = new Date(otherEvent.end.dateTime!);
+              return ((eventStart >= otherStart && eventStart < otherEnd) ||
+                (eventEnd > otherStart && eventEnd <= otherEnd) ||
+                (eventStart <= otherStart && eventEnd >= otherEnd));
+            });
+
+            // Calculate position and width for overlapping events
+            const totalOverlapping = overlappingEvents.length + 1;
+            const eventIndex = index % totalOverlapping;
+            const width = totalOverlapping > 1 ? `calc(${100 / totalOverlapping}% - 4px)` : 'calc(100% - 8px)';
+            const left = totalOverlapping > 1 ? `${(eventIndex * 100) / totalOverlapping}%` : '0';
+
+            grid.push(
+              <div
+                key={`google-${event.id}`}
+                className="absolute bg-black text-[#FF8769] rounded-md p-2 text-xs shadow-md cursor-pointer hover:bg-black/90 transition-colors"
+                style={{
+                  top: `${timeToY(eventStart)}%`,
+                  height: `${Math.max(4, timeToY(eventEnd) - timeToY(eventStart))}%`,
+                  left: left,
+                  width: width,
+                  zIndex: 10
+                }}
+                onClick={() => {
+                  setSelectedGoogleEvent(event);
+                }}
+                title={`${event.summary}${event.description ? ` - ${event.description}` : ''}${event.location ? ` (${event.location})` : ''}`}
+              >
+                <div className="p-1 flex flex-col h-full overflow-hidden">
+                  <div className="flex justify-between items-start">
+                    <div className="text-xs font-bold truncate max-w-[100%] leading-tight">{event.summary}</div>
+                  </div>
+                  {(() => {
+                    if (!event.start.dateTime || !event.end.dateTime) return null;
+                    const startTime = new Date(event.start.dateTime);
+                    const endTime = new Date(event.end.dateTime);
+                    const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+                    if (durationHours >= 1) {
+                      return (
+                        <div className="text-xs mt-auto">
+                          <div className="flex items-center gap-1 truncate">
+                            <span>{`${format(startTime, 'HH:mm')} - ${format(endTime, 'HH:mm')}`}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            );
+          }
+        });
+    }
 
     return grid;
   };
@@ -273,6 +407,87 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             <AlertDialogAction onClick={() => navigate('/meeting-canceled')} className="bg-red-600 hover:bg-red-700">
               Yes, cancel
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Google Calendar Event Details Modal */}
+      <AlertDialog open={!!selectedGoogleEvent} onOpenChange={(open) => !open && setSelectedGoogleEvent(null)}>
+        <AlertDialogContent className="max-w-[400px]">
+          {selectedGoogleEvent && (
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="text-center pb-2">
+                <h3 className="font-semibold text-lg text-gray-900">{selectedGoogleEvent.summary}</h3>
+                {selectedGoogleEvent.start.dateTime && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {format(new Date(selectedGoogleEvent.start.dateTime), 'EEEE, MMMM d')}
+                  </p>
+                )}
+              </div>
+
+              {/* Time */}
+              <div className="flex items-center justify-center py-2">
+                <span className="text-gray-600 mr-2">⏰</span>
+                <span className="text-gray-900">
+                  {selectedGoogleEvent.start.dateTime && selectedGoogleEvent.end.dateTime ?
+                    `${format(new Date(selectedGoogleEvent.start.dateTime), 'HH:mm')} - ${format(new Date(selectedGoogleEvent.end.dateTime), 'HH:mm')}` :
+                    'Time not available'}
+                </span>
+              </div>
+
+              {/* Description */}
+              {selectedGoogleEvent.description && (
+                <div className="text-center py-2">
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    {cleanHtmlTags(selectedGoogleEvent.description)}
+                  </p>
+                </div>
+              )}
+
+              {/* Location */}
+              {selectedGoogleEvent.location && (
+                <div className="text-center py-2">
+                  <button
+                    onClick={() => {
+                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedGoogleEvent.location)}`;
+                      (window as any).open(mapsUrl, '_blank');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                  >
+                    📍 {selectedGoogleEvent.location}
+                  </button>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-2">
+                {selectedGoogleEvent.hangoutLink && (
+                  <button
+                    onClick={() => {
+                      (window as any).open(selectedGoogleEvent.hangoutLink, '_blank');
+                    }}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm font-medium"
+                  >
+                    Join Google Meet
+                  </button>
+                )}
+
+                {selectedGoogleEvent.htmlLink && (
+                  <button
+                    onClick={() => {
+                      (window as any).open(selectedGoogleEvent.htmlLink, '_blank');
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm font-medium"
+                  >
+                    Open in Google Calendar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

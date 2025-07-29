@@ -157,8 +157,8 @@ const AddMeeting: React.FC = () => {
 
     // Multi-company/deal support
     const allCompanies = [selectedCompany, ...additionalCompanies].filter(Boolean);
-    const companyIds = allCompanies.map(c => c.id);
-    const dealIds = allCompanies.map(c => c.dealId || null);
+    const companyIds = allCompanies.map(c => c?.id).filter(Boolean);
+    const dealIds = allCompanies.map(c => c?.dealId || null);
 
     // Normal POST (new or follow-up) — FIXED
     // Always prefer location.state.companyId if present (from DealSelector)
@@ -203,6 +203,44 @@ const AddMeeting: React.FC = () => {
           console.error("❌ Could not mark original meeting completed:", err);
           toast.error("Original meeting was not marked as completed.");
         }
+      }
+
+      // ✅ Create Google Calendar event if Google is connected
+      try {
+        const googleConnectedRes = await fetch(`${BASE_URL}/api/google/connected`, {
+          credentials: 'include'
+        });
+        const googleStatus = await googleConnectedRes.json();
+
+        if (googleStatus.connected) {
+          const contactName = prefilledData.contactName || '';
+          const location = selectedCompany?.address || prefilledData.companyAddress || '';
+
+          const googleEventPayload = {
+            restaurantName: company,
+            contactName,
+            startTime: startMillis,
+            endTime: endMillis,
+            notes: notes || '',
+            location
+          };
+
+          const googleRes = await fetch(`${BASE_URL}/api/google/calendar/meeting`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleEventPayload),
+          });
+
+          if (googleRes.ok) {
+            console.log('✅ Google Calendar event created successfully');
+          } else {
+            console.error('❌ Failed to create Google Calendar event');
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error creating Google Calendar event:', err);
+        // Don't fail the main meeting creation if Google Calendar fails
       }
 
       if (isInPast) {

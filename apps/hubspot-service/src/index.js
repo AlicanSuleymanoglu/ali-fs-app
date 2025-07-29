@@ -11,6 +11,7 @@ import multer from 'multer';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 import NodeCache from 'node-cache';
+import { google } from 'googleapis';
 
 
 
@@ -26,15 +27,6 @@ const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
 
 
 const meetingCache = new NodeCache({ stdTTL: 300 }); // cache for 5 minutes
-
-
-console.log('CLIENT_ID:', process.env.CLIENT_ID);
-console.log('CLIENT_SECRET:', process.env.CLIENT_SECRET);
-console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
-console.log('SCOPES:', process.env.SCOPES);
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-console.log('PORT:', process.env.PORT);
-
 
 app.use(express.json());
 
@@ -82,7 +74,14 @@ app.get('/auth/callback', async (req, res) => {
     req.session.accessToken = tokenRes.data.access_token;
     req.session.refreshToken = tokenRes.data.refresh_token;
     req.session.expiresIn = Date.now() + tokenRes.data.expires_in * 1000; // Expiration time in milliseconds
-    res.redirect(FRONTEND_URL);
+
+    // After successful HubSpot OAuth, redirect to Google OAuth
+    const googleAuthUrl = googleOAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: GOOGLE_SCOPES,
+      prompt: 'consent',
+    });
+    res.redirect(googleAuthUrl);
   } catch (err) {
     console.error("❌ Token exchange failed:", err.response?.data || err.message);
     res.status(500).send('Token exchange failed');
@@ -1301,7 +1300,19 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
   const { startTime, endTime, internalNotes } = req.body;
 
   try {
-    // Send timestamps as strings
+    // Fetch the original meeting details BEFORE updating
+    let originalMeetingDetails;
+    try {
+      const origRes = await hubspotClient.crm.objects.meetings.basicApi.getById(meetingId, [
+        "hs_meeting_start_time",
+        "hs_meeting_end_time"
+      ]);
+      originalMeetingDetails = origRes.body || origRes;
+    } catch (err) {
+      console.error('❌ Could not fetch original meeting details for Google sync:', err.message);
+    }
+
+    // Send timestamps as strings (update HubSpot)
     const result = await hubspotClient.crm.objects.meetings.basicApi.update(meetingId, {
       properties: {
         hs_meeting_start_time: String(startTime),
@@ -1313,6 +1324,112 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
     });
     // Log the FULL response from HubSpot!
     console.log('✅ Meeting rescheduled:', meetingId);
+
+    // --- Google Calendar Sync ---
+    try {
+      const tokens = req.session.googleTokens;
+      if (!tokens) {
+        console.log('[Google Sync] No Google tokens found in session. Skipping Google reschedule.');
+      }
+      if (tokens && originalMeetingDetails && originalMeetingDetails.properties) {
+        const googleOAuth2Client = new google.auth.OAuth2(
+          process.env.GOOGLE_CLIENT_ID,
+          process.env.GOOGLE_CLIENT_SECRET,
+          process.env.GOOGLE_REDIRECT_URI
+        );
+        googleOAuth2Client.setCredentials(tokens);
+        const calendar = google.calendar({ version: 'v3', auth: googleOAuth2Client });
+
+        // Get the original start/end time
+        const origStartRaw = originalMeetingDetails.properties.hs_meeting_start_time;
+        const origEndRaw = originalMeetingDetails.properties.hs_meeting_end_time;
+        const origStart = Date.parse(origStartRaw);
+        const origEnd = Date.parse(origEndRaw);
+        console.log(`[Google Sync] Raw original times: hs_meeting_start_time=${origStartRaw}, hs_meeting_end_time=${origEndRaw}`);
+        console.log(`[Google Sync] Parsed original times: start=${origStart}, end=${origEnd}`);
+        if (!origStart || !origEnd || isNaN(origStart) || isNaN(origEnd)) {
+          console.error('[Google Sync] Invalid or missing original meeting start/end time. Aborting Google sync.');
+          return;
+        }
+        console.log(`[Google Sync] Original HubSpot meeting times: start=${new Date(origStart).toISOString()}, end=${new Date(origEnd).toISOString()}`);
+        const origDayStart = new Date(origStart);
+        origDayStart.setHours(0, 0, 0, 0);
+        const origDayEnd = new Date(origStart);
+        origDayEnd.setHours(23, 59, 59, 999);
+
+        // Fetch Google events for that day
+        const eventsRes = await calendar.events.list({
+          calendarId: 'primary',
+          timeMin: origDayStart.toISOString(),
+          timeMax: origDayEnd.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 20
+        });
+        const googleEvents = eventsRes.data.items || [];
+        console.log(`[Google Sync] Fetched ${googleEvents.length} Google events for the day.`);
+        googleEvents.forEach(ev => {
+          const evStartRaw = ev.start && ev.start.dateTime;
+          const evEndRaw = ev.end && ev.end.dateTime;
+          console.log(`[Google Sync] Event: id=${ev.id}, summary=${ev.summary}, start=${evStartRaw}, end=${evEndRaw}`);
+        });
+
+        // Find a Google event with the same start and end time as the original meeting
+        const matchingEvent = googleEvents.find(ev => {
+          if (!ev.start || !ev.end || !ev.start.dateTime || !ev.end.dateTime) return false;
+          const evStart = new Date(ev.start.dateTime).getTime();
+          const evEnd = new Date(ev.end.dateTime).getTime();
+          if (isNaN(evStart) || isNaN(evEnd)) {
+            console.log(`[Google Sync] Skipping event with invalid date: id=${ev.id}, start=${ev.start.dateTime}, end=${ev.end.dateTime}`);
+            return false;
+          }
+          return Math.abs(evStart - origStart) < 60000 && Math.abs(evEnd - origEnd) < 60000; // allow 1 min diff
+        });
+
+        if (matchingEvent) {
+          console.log(`[Google Sync] Found matching Google event: id=${matchingEvent.id}, summary=${matchingEvent.summary}`);
+          // Parse new start/end time robustly
+          console.log(`[Google Sync] Raw new startTime:`, startTime, 'endTime:', endTime);
+          let newStartDate, newEndDate;
+          if (typeof startTime === 'number' || (typeof startTime === 'string' && /^\d+$/.test(startTime))) {
+            newStartDate = new Date(Number(startTime));
+          } else {
+            newStartDate = new Date(startTime);
+          }
+          if (typeof endTime === 'number' || (typeof endTime === 'string' && /^\d+$/.test(endTime))) {
+            newEndDate = new Date(Number(endTime));
+          } else {
+            newEndDate = new Date(endTime);
+          }
+          if (isNaN(newStartDate.getTime()) || isNaN(newEndDate.getTime())) {
+            console.error('[Google Sync] Invalid new startTime or endTime for Google event. Aborting Google patch.');
+            return;
+          }
+          // Update the Google event's start/end time
+          await calendar.events.patch({
+            calendarId: 'primary',
+            eventId: matchingEvent.id,
+            requestBody: {
+              start: {
+                dateTime: newStartDate.toISOString(),
+                timeZone: 'UTC',
+              },
+              end: {
+                dateTime: newEndDate.toISOString(),
+                timeZone: 'UTC',
+              },
+            },
+          });
+          console.log('✅ Google Calendar event rescheduled (by time):', matchingEvent.id);
+        } else {
+          console.log('[Google Sync] No matching Google Calendar event found to reschedule by time.');
+        }
+      }
+    } catch (googleErr) {
+      console.error('❌ Failed to reschedule Google Calendar event:', googleErr);
+    }
+    // --- End Google Calendar Sync ---
+
     res.json({
       success: true,
       redirectUrl: '/dashboard'  // Add redirect URL to response
@@ -2361,3 +2478,238 @@ app.post('/api/meetings/by-date', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch meetings for date' });
   }
 });
+
+
+// === Google OAuth Setup ===
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'];
+
+const googleOAuth2Client = new google.auth.OAuth2(
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI,
+  GOOGLE_SCOPES
+);
+
+// Start Google OAuth
+app.get('/auth/google', (req, res) => {
+  const url = googleOAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: GOOGLE_SCOPES,
+    prompt: 'consent',
+  });
+  res.redirect(url);
+});
+
+// Google OAuth callback
+app.get('/auth/google/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).send('Missing code');
+  try {
+    const { tokens } = await googleOAuth2Client.getToken(code);
+    req.session.googleTokens = tokens;
+    // After successful Google OAuth, redirect to the dashboard
+    res.redirect(FRONTEND_URL);
+  } catch (err) {
+    console.error('Google OAuth error:', err);
+    res.status(500).send('Google OAuth failed');
+  }
+});
+
+// Fetch Google Calendar events
+app.get('/api/google/calendar', async (req, res) => {
+  const tokens = req.session.googleTokens;
+  if (!tokens) return res.status(401).json({ error: 'Not authenticated with Google' });
+  googleOAuth2Client.setCredentials(tokens);
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: googleOAuth2Client });
+
+    // Calculate date range: 3 weeks ago to 1 week ahead
+    const now = new Date();
+    const threeWeeksAgo = new Date(now);
+    threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21); // 3 weeks ago
+
+    const oneWeekAhead = new Date(now);
+    oneWeekAhead.setDate(oneWeekAhead.getDate() + 7); // 1 week ahead
+
+    const eventsRes = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: threeWeeksAgo.toISOString(),
+      timeMax: oneWeekAhead.toISOString(),
+      maxResults: 250, // Increased to get more events
+      singleEvents: true,
+      orderBy: 'startTime',
+      showDeleted: false,
+    });
+
+    // Filter out declined events and all-day events
+    const filteredEvents = (eventsRes.data.items || []).filter(event => {
+      // Skip declined events
+      if (event.attendees) {
+        const currentUser = event.attendees.find(attendee =>
+          attendee.self === true
+        );
+        if (currentUser && currentUser.responseStatus === 'declined') {
+          return false;
+        }
+      }
+
+      // Skip all-day events (events with only date, no dateTime)
+      if (event.start.date && !event.start.dateTime) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Sort events by priority: this week, last week, then week ahead
+    const currentDate = new Date();
+    const currentWeekStart = new Date(currentDate);
+    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay() + 1); // Monday
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6); // Sunday
+    currentWeekEnd.setHours(23, 59, 59, 999);
+
+    const lastWeekStart = new Date(currentWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const nextWeekStart = new Date(currentWeekStart);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+    const sortedEvents = filteredEvents.sort((a, b) => {
+      const aDate = new Date(a.start.dateTime);
+      const bDate = new Date(b.start.dateTime);
+
+      // Helper function to get priority (1 = this week, 2 = last week, 3 = next week)
+      const getPriority = (date) => {
+        if (date >= currentWeekStart && date <= currentWeekEnd) return 1;
+        if (date >= lastWeekStart && date < currentWeekStart) return 2;
+        if (date >= nextWeekStart) return 3;
+        return 4; // Other dates
+      };
+
+      const aPriority = getPriority(aDate);
+      const bPriority = getPriority(bDate);
+
+      // First sort by priority
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      // Then sort by time within the same priority
+      return aDate.getTime() - bDate.getTime();
+    });
+
+    res.json(sortedEvents);
+  } catch (err) {
+    console.error('Failed to fetch Google Calendar events:', err);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+
+// Check if Google is connected
+app.get('/api/google/connected', (req, res) => {
+  if (req.session.googleTokens && req.session.googleTokens.access_token) {
+    res.json({ connected: true });
+  } else {
+    res.json({ connected: false });
+  }
+});
+
+
+// ... existing code ...
+// Create Google Calendar event
+app.post('/api/google/calendar/events', async (req, res) => {
+  const tokens = req.session.googleTokens;
+  if (!tokens) return res.status(401).json({ error: 'Not authenticated with Google' });
+
+  const { summary, description, startDateTime, endDateTime } = req.body;
+  if (!summary || !startDateTime || !endDateTime) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  googleOAuth2Client.setCredentials(tokens);
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: googleOAuth2Client });
+    const event = {
+      summary: summary,
+      description: description || '',
+      start: {
+        dateTime: new Date(startDateTime).toISOString(),
+        timeZone: 'UTC',
+      },
+      end: {
+        dateTime: new Date(endDateTime).toISOString(),
+        timeZone: 'UTC',
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: event,
+    });
+
+    res.json({ success: true, event: response.data });
+  } catch (err) {
+    console.error('Failed to create Google Calendar event:', err);
+    res.status(500).json({ error: 'Failed to create event' });
+  }
+});
+
+// Create Google Calendar event for meeting
+app.post('/api/google/calendar/meeting', async (req, res) => {
+  const tokens = req.session.googleTokens;
+  if (!tokens) return res.status(401).json({ error: 'Not authenticated with Google' });
+
+  const {
+    restaurantName,
+    contactName,
+    startTime,
+    endTime,
+    notes,
+    location
+  } = req.body;
+
+  if (!restaurantName || !startTime || !endTime) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  googleOAuth2Client.setCredentials(tokens);
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: googleOAuth2Client });
+
+    // Format the event title as "Restaurant Name (Contact Name)"
+    const eventTitle = contactName ? `${restaurantName} (${contactName})` : restaurantName;
+
+    const event = {
+      summary: eventTitle,
+      description: notes || '',
+      location: location || '',
+      start: {
+        dateTime: new Date(startTime).toISOString(),
+        timeZone: 'UTC',
+      },
+      end: {
+        dateTime: new Date(endTime).toISOString(),
+        timeZone: 'UTC',
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: event,
+    });
+
+    console.log('✅ Google Calendar event created:', response.data.id);
+    res.json({ success: true, event: response.data });
+  } catch (err) {
+    console.error('Failed to create Google Calendar event for meeting:', err);
+    res.status(500).json({ error: 'Failed to create Google Calendar event' });
+  }
+});
+// ... existing code ...

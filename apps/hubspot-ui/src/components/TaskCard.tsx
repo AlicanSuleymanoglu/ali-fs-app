@@ -142,6 +142,44 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
         throw new Error('Failed to retrieve new meeting ID');
       }
 
+      // ✅ Create Google Calendar event if Google is connected
+      try {
+        const googleConnectedRes = await fetch(`${BASE_URL}/api/google/connected`, {
+          credentials: 'include'
+        });
+        const googleStatus = await googleConnectedRes.json();
+
+        if (googleStatus.connected) {
+          const contactName = task.contactName || '';
+          const location = task.companyAddress || '';
+
+          const googleEventPayload = {
+            restaurantName: task.restaurantName,
+            contactName,
+            startTime: meetingDate.getTime(),
+            endTime: endTime.getTime(),
+            notes: meetingNotes || `Follow-up meeting for ${task.restaurantName}`,
+            location
+          };
+
+          const googleRes = await fetch(`${BASE_URL}/api/google/calendar/meeting`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleEventPayload),
+          });
+
+          if (googleRes.ok) {
+            console.log('✅ Google Calendar event created successfully');
+          } else {
+            console.error('❌ Failed to create Google Calendar event');
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error creating Google Calendar event:', err);
+        // Don't fail the main meeting creation if Google Calendar fails
+      }
+
       // Mark the task as completed
       await onComplete(task.id);
 

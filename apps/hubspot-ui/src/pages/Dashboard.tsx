@@ -36,6 +36,9 @@ const Dashboard: React.FC = () => {
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [isFetchCooldown, setIsFetchCooldown] = useState(false);
   const [lightMeetings, setLightMeetings] = useState([]);
+  const [googleConnected, setGoogleConnected] = useState<boolean>(false);
+
+
   const location = useLocation();
 
   // Use the date from navigation state if available
@@ -44,6 +47,15 @@ const Dashboard: React.FC = () => {
       setCurrentDate(new Date(location.state.selectedDate));
     }
   }, [location.state]);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_PUBLIC_API_BASE_URL}/api/google/connected`, {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(data => setGoogleConnected(data.connected))
+      .catch(() => setGoogleConnected(false));
+  }, []);
 
   const isMobile = useIsMobile();
   const user = useUser();
@@ -148,12 +160,7 @@ const Dashboard: React.FC = () => {
     const url = generateMapsRouteURL();
     if (url) {
       // Open the URL in a new tab
-      const win = window as any;
-      if (win) {
-        win.open(url, '_blank', 'noopener,noreferrer');
-      } else {
-        toast.error('Failed to open Google Maps. Please try again.');
-      }
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -423,12 +430,20 @@ const Dashboard: React.FC = () => {
     isWithinInterval(selectedWeekStart, { start: rangeStart, end: rangeEnd }) &&
     isWithinInterval(selectedWeekEnd, { start: rangeStart, end: rangeEnd });
 
+
+
+
+
   if (!user || !user.user_id) {
     return <div className="p-6">🔄 Loading dashboard...</div>;
   }
 
   return (
     <div className="h-screen overflow-hidden flex flex-col relative">
+
+
+
+
       {/* Moved WeeklyOverview to the very top with no margin */}
       <div className="flex-none">
         <WeeklyOverview

@@ -95,6 +95,44 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
       const newMeeting = await res.json();
       console.log("✅ API Response:", newMeeting);
 
+      // ✅ Create Google Calendar event if Google is connected
+      try {
+        const googleConnectedRes = await fetch(`${BASE_URL}/api/google/connected`, {
+          credentials: 'include'
+        });
+        const googleStatus = await googleConnectedRes.json();
+
+        if (googleStatus.connected) {
+          const contactName = ''; // Contact name not available in this context
+          const location = selectedCompany?.address || '';
+
+          const googleEventPayload = {
+            restaurantName: selectedCompany.name,
+            contactName,
+            startTime: meetingDate.getTime(),
+            endTime: endDate.getTime(),
+            notes: notes || '',
+            location
+          };
+
+          const googleRes = await fetch(`${BASE_URL}/api/google/calendar/meeting`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleEventPayload),
+          });
+
+          if (googleRes.ok) {
+            console.log('✅ Google Calendar event created successfully');
+          } else {
+            console.error('❌ Failed to create Google Calendar event');
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error creating Google Calendar event:', err);
+        // Don't fail the main meeting creation if Google Calendar fails
+      }
+
       if (!newMeeting?.meetingId) {
         console.error("❌ Invalid Meeting Response:", newMeeting);
         throw new Error('Failed to retrieve new meeting ID');

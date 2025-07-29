@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog.tsx';
-import { cn } from '../lib/utils.ts'; // Added cn
+import { cn, cleanHtmlTags } from '../lib/utils.ts'; // Added cn
 import { toast } from '../components/ui/use-toast.ts';
 import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover.tsx';
 import { Input } from '../components/ui/input.tsx';
@@ -406,7 +406,7 @@ const MeetingActions: React.FC = () => {
           <div className="py-2">
             <p className="text-sm text-gray-500">Internal Notes</p>
             {meetingDetails.internalNotes ? (
-              <p className="font-medium">{meetingDetails.internalNotes}</p>
+              <p className="font-medium">{cleanHtmlTags(meetingDetails.internalNotes)}</p>
             ) : (
               <p className="font-medium text-gray-400">No internal notes available</p>
             )}
