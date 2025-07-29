@@ -480,7 +480,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm font-medium"
                   >
-                    Open in Google Calendar test test test
+                    Open in Google Calendar
                   </button>
                 )}
               </div>
