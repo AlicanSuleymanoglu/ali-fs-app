@@ -3,7 +3,7 @@ import { Task } from '../types/index.ts';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from './TaskCard.tsx';
 import { Button } from './ui/button.tsx';
-import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Inbox, Mail } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile.tsx';
 
 interface TaskSectionProps {
@@ -63,9 +63,19 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     <div className="flex-none mb-2">
       {tasksForSelectedDate.length > 0 ? (
         <div>
-          <div className="flex items-center cursor-pointer" onClick={navigateToTasks}>
-            <h3 className="text-sm font-medium mb-1 text-muted-foreground">Tasks</h3>
-            <ArrowRight className="h-4 w-4 ml-1 text-muted-foreground" />
+          <div
+            className="flex items-center justify-between p-1 mb-2 bg-gradient-to-r from-orange-25 to-amber-25 border border-[#FF8769]/10 rounded cursor-pointer hover:from-orange-50 hover:to-amber-50 hover:border-[#FF8769]/30 hover:shadow-md transition-all duration-200 shadow-sm group"
+            onClick={navigateToTasks}
+          >
+            <div className="flex items-center gap-1">
+              <div className="w-5 h-5 bg-[#FF8769] rounded-full flex items-center justify-center">
+                <Inbox className="h-3 w-3 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xs font-medium text-gray-800">Tasks ({totalTasksInInbox})</h3>
+              </div>
+            </div>
+            <ArrowRight className="h-3 w-3 text-[#FF8769] group-hover:translate-x-0.5 transition-transform duration-200" />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {displayedTasks.map(task => (
@@ -100,11 +110,19 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">No tasks for this day. Check all your tasks in the </p>
-          <Button variant="link" onClick={navigateToTasks} className="ml-1">
-            Inbox ({totalTasksInInbox})
-          </Button>
+        <div
+          className="flex items-center justify-between p-1 mb-2 bg-gradient-to-r from-orange-25 to-amber-25 border border-[#FF8769]/10 rounded cursor-pointer hover:from-orange-50 hover:to-amber-50 hover:border-[#FF8769]/30 hover:shadow-md transition-all duration-200 shadow-sm group"
+          onClick={navigateToTasks}
+        >
+          <div className="flex items-center gap-1">
+            <div className="w-5 h-5 bg-[#FF8769] rounded-full flex items-center justify-center">
+              <Inbox className="h-3 w-3 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xs font-medium text-gray-800">Tasks ({totalTasksInInbox})</h3>
+            </div>
+          </div>
+          <ArrowRight className="h-3 w-3 text-[#FF8769] group-hover:translate-x-0.5 transition-transform duration-200" />
         </div>
       )}
     </div>
@@ -115,3 +133,5 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 import { isPast, isSameDay } from 'date-fns';
 
 export default TaskSection;
+
+

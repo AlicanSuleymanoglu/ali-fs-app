@@ -478,12 +478,12 @@ const Dashboard: React.FC = () => {
                 size="sm"
                 className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${isRefreshCooldown
                   ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                  : "text-black hover:text-gray-800 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                   }`}
                 disabled={isRefreshing || isRefreshCooldown}
                 title={isRefreshCooldown ? "Please wait 10 seconds before refreshing again" : "Refresh meetings"}
               >
-                <RefreshCw size={14} className={`${isRefreshCooldown ? "text-gray-400" : "text-blue-600"} ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw size={14} className={`${isRefreshCooldown ? "text-gray-400" : "text-black"} ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : ''}</span>
               </Button>
             )}
@@ -506,13 +506,13 @@ const Dashboard: React.FC = () => {
               variant="outline"
               size="sm"
               className={`flex items-center gap-1 h-6 px-2 rounded-full transition-colors ${hasMeetings
-                ? "text-blue-600 hover:text-blue-800 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                ? "text-black hover:text-gray-800 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                 : "text-gray-400 border-gray-200 cursor-not-allowed"
                 }`}
               title={hasMeetings ? "View route map for today's meetings" : "No meetings scheduled for this day"}
               disabled={!hasMeetings}
             >
-              <MapPin size={14} className={hasMeetings ? "text-blue-600" : "text-gray-400"} />
+              <MapPin size={14} className={hasMeetings ? "text-black" : "text-gray-400"} />
               <span className="text-xs font-medium">Route</span>
             </Button>
           </div>
