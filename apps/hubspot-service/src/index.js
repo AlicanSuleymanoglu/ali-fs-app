@@ -2207,69 +2207,17 @@ app.post('/api/company/note', async (req, res) => {
   }
 
   try {
-    // Step 1: Create the note with prefix
-    const noteResponse = await axios.post(
-      'https://api.hubapi.com/crm/v3/objects/notes',
-      {
-        properties: {
-          hs_note_body: `Meeting Notes:\n\n${note.trim()}`,
-          hs_timestamp: Date.now(),
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // Send note and metadata to Zapier webhook only
+    await axios.post('https://hooks.zapier.com/hooks/catch/20863141/ubdy2ro/', {
+      note: note.trim(),
+      companyId,
+      dealId: dealId || null,
+      contactId: contactId || null,
+      userId: ownerId || null
+    });
+    console.log('✅ Note sent to Zapier webhook');
 
-    const noteId = noteResponse.data.id;
-
-    // Helper function to create associations
-    const associateNote = async (toType, toId, associationTypeId) => {
-      return axios.put(
-        `https://api.hubapi.com/crm/v3/objects/notes/${noteId}/associations/${toType}/${toId}/${associationTypeId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    };
-
-    // Step 2: Associate with Company (associationTypeId 189)
-    await associateNote('companies', companyId, 190);
-
-    // Optional associations
-    if (dealId) {
-      await associateNote('deals', dealId, 214);
-    }
-
-    if (contactId) {
-      await associateNote('contacts', contactId, 202);
-    }
-
-    // Step 3: Send note and metadata to Zapier webhook
-    try {
-      await axios.post('https://hooks.zapier.com/hooks/catch/20863141/ubdy2ro/', {
-        note: note.trim(),
-        noteId,
-        companyId,
-        dealId: dealId || null,
-        contactId: contactId || null,
-        userId: ownerId || null
-      });
-      console.log('✅ Note sent to Zapier webhook');
-    } catch (zapierErr) {
-      console.error('❌ Failed to send note to Zapier webhook:', zapierErr.response?.data || zapierErr.message);
-      // Do not fail the main request if Zapier fails
-    }
-
-    console.log('✅ Company note created and associated:', {
-      noteId,
+    console.log('✅ Granola note sent to Zapier:', {
       companyId,
       dealId: dealId || 'none',
       contactId: contactId || 'none',
@@ -2278,17 +2226,12 @@ app.post('/api/company/note', async (req, res) => {
 
     res.json({
       success: true,
-      noteId,
-      associations: {
-        companyId,
-        dealId: dealId || null,
-        contactId: contactId || null
-      }
+      message: 'Note sent to Zapier successfully'
     });
   } catch (err) {
-    console.error('❌ Failed to create or associate note:', err.response?.data || err.message);
+    console.error('❌ Failed to send note to Zapier:', err.response?.data || err.message);
     res.status(500).json({
-      error: 'Failed to create or associate note',
+      error: 'Failed to send note to Zapier',
       details: err.response?.data || err.message
     });
   }

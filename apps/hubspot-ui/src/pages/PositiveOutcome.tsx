@@ -144,7 +144,7 @@ const PositiveOutcome: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to send text note');
-      toast.success("Note sent successfully");
+      toast.success("Note sent to Zapier successfully");
       setStep('reason');
     } catch (err) {
       toast.error("Failed to send note");

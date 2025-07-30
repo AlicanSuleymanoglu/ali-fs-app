@@ -116,7 +116,7 @@ const FollowUpOutcome: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to send text note');
-      toast.success("Note sent successfully");
+      toast.success("Note sent to Zapier successfully");
       setIsVoiceNoteSent(true);
       // Navigate to the follow-up options page after successful note
       navigate(`/meeting/${id}/follow-up-options`, {
