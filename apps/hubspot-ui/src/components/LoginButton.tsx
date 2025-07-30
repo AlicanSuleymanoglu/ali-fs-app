@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 
 const LoginButton = () => {
   const handleLogin = () => {
-    globalThis.location.href = 'https://sales.allo.restaurant/auth/login'; // Update to backend URL
+    globalThis.location.href = 'http://localhost:3000/auth/login'; // Update to backend URL
   };
 
   return (

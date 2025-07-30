@@ -42,6 +42,8 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
     phone: '',
   });
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [duplicateContact, setDuplicateContact] = useState<Contact | null>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   useEffect(() => {
     if (value) setSearchTerm(value.fullName || '');
@@ -126,6 +128,37 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
 
   const handleAddContact = () => setShowAddDialog(true);
 
+  const handleSelectExistingContact = async () => {
+    if (!duplicateContact) return;
+
+    try {
+      // Associate the existing contact with the company
+      if (selectedCompany?.id) {
+        const assocRes = await fetch(`${BASE_URL}/api/companies/${selectedCompany.id}/associate-contact`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ contactId: duplicateContact.id }),
+        });
+
+        if (!assocRes.ok) {
+          throw new Error("Failed to associate contact with company");
+        }
+      }
+
+      // Select the existing contact
+      setSearchTerm(duplicateContact.fullName);
+      await selectContact(duplicateContact);
+      setShowDuplicateDialog(false);
+      setShowAddDialog(false);
+      setDuplicateContact(null);
+      toast.success("Existing contact selected and associated!");
+    } catch (error) {
+      console.error("❌ Error selecting existing contact:", error);
+      toast.error("Failed to select existing contact");
+    }
+  };
+
   const validatePhoneNumber = (phone: string): boolean => {
     if (!phone) return true; // Empty phone is allowed
     const phoneRegex = /^\+49\d{9,11}$/;
@@ -176,6 +209,14 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
         credentials: 'include',
         body: JSON.stringify(payload),
       });
+
+      if (res.status === 409) {
+        // Handle duplicate contact
+        const errorData = await res.json();
+        setDuplicateContact(errorData.existingContact);
+        setShowDuplicateDialog(true);
+        return;
+      }
 
       if (!res.ok) throw new Error("Failed to create contact");
       const contact = await res.json();
@@ -307,6 +348,52 @@ const ContactSearch: React.FC<ContactSearchProps> = ({
               <Button type="submit">Add Contact</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Contact Dialog */}
+      <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <User className="mr-2 h-5 w-5" />
+              Contact Already Exists
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <p className="text-sm text-yellow-800 mb-3">
+                A contact with the same {duplicateContact?.email === newContact.email ? 'email address' : 'name'} already exists:
+              </p>
+
+              {duplicateContact && (
+                <div className="bg-white border border-gray-200 rounded-md p-3">
+                  <div className="font-medium">{duplicateContact.fullName}</div>
+                  <div className="text-sm text-gray-500">{duplicateContact.email}</div>
+                  {duplicateContact.phone && (
+                    <div className="text-sm text-gray-500">{duplicateContact.phone}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="text-sm text-gray-600">
+              Would you like to select this existing contact instead?
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowDuplicateDialog(false);
+              setDuplicateContact(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleSelectExistingContact}>
+              Select Existing Contact
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

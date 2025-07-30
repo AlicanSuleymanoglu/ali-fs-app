@@ -1661,7 +1661,84 @@ app.post('/api/hubspot/contact/create', async (req, res) => {
   const { firstName, lastName, email, phone, companyId } = req.body;
 
   try {
-    // Step 1: Create the contact
+    // Step 1: Check for existing contacts with same email or name
+    const searchParams = {
+      filterGroups: [{
+        filters: [
+          {
+            propertyName: 'email',
+            operator: 'EQ',
+            value: email
+          }
+        ]
+      }],
+      properties: ['firstname', 'lastname', 'email', 'phone'],
+      limit: 10,
+    };
+
+    const existingContacts = await hubspotClient.crm.contacts.searchApi.doSearch(searchParams);
+
+    if (existingContacts.results && existingContacts.results.length > 0) {
+      // Found existing contacts with same email
+      const existingContact = existingContacts.results[0];
+      console.log("⚠️ Found existing contact with same email:", existingContact.id);
+
+      return res.status(409).json({
+        error: 'Contact already exists',
+        type: 'DUPLICATE_EMAIL',
+        existingContact: {
+          id: existingContact.id,
+          fullName: `${existingContact.properties.firstname || ''} ${existingContact.properties.lastname || ''}`.trim(),
+          firstName: existingContact.properties.firstname,
+          lastName: existingContact.properties.lastname,
+          email: existingContact.properties.email,
+          phone: existingContact.properties.phone
+        }
+      });
+    }
+
+    // Step 2: Check for contacts with same first and last name
+    const nameSearchParams = {
+      filterGroups: [{
+        filters: [
+          {
+            propertyName: 'firstname',
+            operator: 'EQ',
+            value: firstName
+          },
+          {
+            propertyName: 'lastname',
+            operator: 'EQ',
+            value: lastName
+          }
+        ]
+      }],
+      properties: ['firstname', 'lastname', 'email', 'phone'],
+      limit: 10,
+    };
+
+    const existingNameContacts = await hubspotClient.crm.contacts.searchApi.doSearch(nameSearchParams);
+
+    if (existingNameContacts.results && existingNameContacts.results.length > 0) {
+      // Found existing contacts with same name
+      const existingContact = existingNameContacts.results[0];
+      console.log("⚠️ Found existing contact with same name:", existingContact.id);
+
+      return res.status(409).json({
+        error: 'Contact already exists',
+        type: 'DUPLICATE_NAME',
+        existingContact: {
+          id: existingContact.id,
+          fullName: `${existingContact.properties.firstname || ''} ${existingContact.properties.lastname || ''}`.trim(),
+          firstName: existingContact.properties.firstname,
+          lastName: existingContact.properties.lastname,
+          email: existingContact.properties.email,
+          phone: existingContact.properties.phone
+        }
+      });
+    }
+
+    // Step 3: Create the contact if no duplicates found
     const contactRes = await hubspotClient.crm.contacts.basicApi.create({
       properties: {
         firstname: firstName,
@@ -1674,7 +1751,7 @@ app.post('/api/hubspot/contact/create', async (req, res) => {
 
     const contactId = contactRes.id;
 
-    // Step 2: Use axios to call v4 endpoint for default association
+    // Step 4: Use axios to call v4 endpoint for default association
     await axios.put(
       `https://api.hubapi.com/crm/v4/objects/contact/${contactId}/associations/default/company/${companyId}`,
       {},
