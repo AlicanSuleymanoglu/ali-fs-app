@@ -6,15 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs.
 import { Badge } from "../components/ui/badge.tsx";
 import { useTasks } from '../hooks/useTasks.ts';
 import { Button } from "../components/ui/button.tsx";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "../components/ui/input.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover.tsx";
+import { Calendar as CalendarComponent } from "../components/ui/calendar.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select.tsx";
+import { format, isSameDay, isToday, isTomorrow, isYesterday, addDays, subDays } from 'date-fns';
 
 const Inbox: React.FC = () => {
   const navigate = useNavigate();
   const { tasks, markAsRead, markAsCompleted, disqualifyTask } = useTasks();
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'followup' | 'cancellation'>('all');
   const [search, setSearch] = useState("");
+  const [dueDateFilter, setDueDateFilter] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week' | 'custom'>('all');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Sort tasks by due date (earliest first)
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -41,12 +48,37 @@ const Inbox: React.FC = () => {
     }
   }
 
+  // Filter by due date
+  const dateFilteredTasks = incompleteTasks.filter(task => {
+    if (dueDateFilter === 'all') return true;
+
+    const taskDueDate = new Date(task.dueDate);
+    const today = new Date();
+
+    switch (dueDateFilter) {
+      case 'today':
+        return isToday(taskDueDate);
+      case 'tomorrow':
+        return isTomorrow(taskDueDate);
+      case 'overdue':
+        return taskDueDate < today && !isToday(taskDueDate);
+      case 'this-week':
+        const weekStart = subDays(today, today.getDay());
+        const weekEnd = addDays(weekStart, 6);
+        return taskDueDate >= weekStart && taskDueDate <= weekEnd;
+      case 'custom':
+        return customDate ? isSameDay(taskDueDate, customDate) : true;
+      default:
+        return true;
+    }
+  });
+
   // Filter by restaurant name search
   const filteredTasks = search.trim().length > 0
-    ? incompleteTasks.filter(task =>
+    ? dateFilteredTasks.filter(task =>
       (task.restaurantName || '').toLowerCase().includes(search.trim().toLowerCase())
     )
-    : incompleteTasks;
+    : dateFilteredTasks;
 
   const handleTaskClick = (taskId: string) => {
     markAsRead(taskId);
@@ -92,29 +124,61 @@ const Inbox: React.FC = () => {
         />
       </div>
 
-      {/* Task type filter */}
-      <div className="flex gap-2 mb-4">
-        <Button
-          variant={taskTypeFilter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setTaskTypeFilter('all')}
-        >
-          All
-        </Button>
-        <Button
-          variant={taskTypeFilter === 'followup' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setTaskTypeFilter('followup')}
-        >
-          Followup Tasks
-        </Button>
-        <Button
-          variant={taskTypeFilter === 'cancellation' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setTaskTypeFilter('cancellation')}
-        >
-          Cancellation Tasks
-        </Button>
+      {/* Filters */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Type:</span>
+          <Select value={taskTypeFilter} onValueChange={(value) => setTaskTypeFilter(value as any)}>
+            <SelectTrigger className="max-w-xs h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Tasks</SelectItem>
+              <SelectItem value="followup">Followup</SelectItem>
+              <SelectItem value="cancellation">Cancellation</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Due:</span>
+          <Select value={dueDateFilter} onValueChange={(value) => {
+            if (value === 'custom') {
+              setCalendarOpen(true);
+            } else {
+              setDueDateFilter(value as any);
+              setCustomDate(undefined);
+            }
+          }}>
+            <SelectTrigger className="max-w-xs h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dates</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="tomorrow">Tomorrow</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="this-week">This Week</SelectItem>
+              <SelectItem value="custom">Custom Date</SelectItem>
+            </SelectContent>
+          </Select>
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={customDate}
+                onSelect={(selectedDate) => {
+                  if (selectedDate) {
+                    setCustomDate(selectedDate);
+                    setDueDateFilter('custom');
+                    setCalendarOpen(false);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <div className="mt-4">
