@@ -28,6 +28,14 @@ const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
 
 const meetingCache = new NodeCache({ stdTTL: 300 }); // cache for 5 minutes
 
+// Helper function to replace old user ID with new one
+function replaceUserId(userId) {
+  if (userId === "74750550" || userId === 74750550) {
+    return "207972960";
+  }
+  return userId;
+}
+
 app.use(express.json());
 
 app.use(cors({
@@ -163,7 +171,7 @@ app.get('/api/me', checkTokenExpiration, async (req, res) => {
     });
 
     res.json({
-      user_id: meRes.data.user_id,
+      user_id: replaceUserId(meRes.data.user_id),
       hubId: meRes.data.hub_id,
       name: meRes.data.user,
       email: meRes.data.user_email
@@ -678,7 +686,7 @@ app.post('/api/meetings/create', async (req, res) => {
   if (!ownerId) {
     try {
       const whoami = await axios.get(`https://api.hubapi.com/oauth/v1/access-tokens/${token}`);
-      ownerId = whoami.data.user_id;
+      ownerId = replaceUserId(whoami.data.user_id);
       console.log("🔁 Fetched ownerId from HubSpot token:", ownerId);
     } catch (err) {
       console.error("❌ Failed to fetch user_id from access token:", err.response?.data || err.message);
@@ -1526,7 +1534,7 @@ app.post('/api/hubspot/deals/create', async (req, res) => {
   if (!ownerId) {
     try {
       const whoami = await axios.get(`https://api.hubapi.com/oauth/v1/access-tokens/${token}`);
-      ownerId = whoami.data.user_id;
+      ownerId = replaceUserId(whoami.data.user_id);
       console.log("🔁 Fetched ownerId from token:", ownerId);
     } catch (err) {
       console.error("❌ Could not resolve ownerId", err.response?.data || err.message);
@@ -1652,7 +1660,7 @@ app.post('/api/hubspot/contact/create', async (req, res) => {
   if (!ownerId) {
     try {
       const whoami = await axios.get(`https://api.hubapi.com/oauth/v1/access-tokens/${token}`);
-      ownerId = whoami.data.user_id;
+      ownerId = replaceUserId(whoami.data.user_id);
     } catch (err) {
       return res.status(400).json({ error: 'Could not resolve owner ID' });
     }
@@ -1989,7 +1997,7 @@ app.post('/api/companies/create', async (req, res) => {
   if (!ownerId) {
     try {
       const whoami = await axios.get(`https://api.hubapi.com/oauth/v1/access-tokens/${token}`);
-      ownerId = whoami.data.user_id;
+      ownerId = replaceUserId(whoami.data.user_id);
       req.session.ownerId = ownerId; // ✅ Store ownerId in session for future use
       console.log("🔁 Fetched ownerId from token:", ownerId);
     } catch (err) {
