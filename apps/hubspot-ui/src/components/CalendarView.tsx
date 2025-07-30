@@ -323,7 +323,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
             const totalOverlapping = overlappingEvents.length + 1;
             const eventIndex = index % totalOverlapping;
             const width = totalOverlapping > 1 ? `calc(${100 / totalOverlapping}% - 4px)` : 'calc(100% - 8px)';
-            const left = totalOverlapping > 1 ? `${(eventIndex * 100) / totalOverlapping}%` : '0';
+            const left = totalOverlapping > 1 ? `${(eventIndex * 100) / totalOverlapping}%` : '4px';
 
             grid.push(
               <div
