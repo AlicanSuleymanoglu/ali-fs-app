@@ -413,82 +413,112 @@ const CalendarView: React.FC<CalendarViewProps> = ({ userId, selectedDate, onSel
 
       {/* Google Calendar Event Details Modal */}
       <AlertDialog open={!!selectedGoogleEvent} onOpenChange={(open) => !open && setSelectedGoogleEvent(null)}>
-        <AlertDialogContent className="max-w-[400px]">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-[500px] bg-white p-6">
           {selectedGoogleEvent && (
-            <div className="space-y-4">
-              {/* Header */}
-              <div className="text-center pb-2">
-                <h3 className="font-semibold text-lg text-gray-900">{selectedGoogleEvent.summary}</h3>
+            <div className="space-y-6 relative">
+              {/* Close button in top corner */}
+              <button
+                onClick={() => setSelectedGoogleEvent(null)}
+                className="absolute top-0 right-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors z-10 rounded-full hover:bg-gray-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Event Header */}
+              <div className="pt-0">
+                <h3 className="font-medium text-lg text-gray-900 break-words leading-tight mb-1">
+                  {selectedGoogleEvent.summary}
+                </h3>
                 {selectedGoogleEvent.start.dateTime && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    {format(new Date(selectedGoogleEvent.start.dateTime), 'EEEE, MMMM d')}
+                  <p className="text-sm text-gray-600 break-words">
+                    {format(new Date(selectedGoogleEvent.start.dateTime), 'EEEE, MMMM d')} • {
+                      selectedGoogleEvent.start.dateTime && selectedGoogleEvent.end.dateTime ?
+                        `${format(new Date(selectedGoogleEvent.start.dateTime), 'HH:mm')} – ${format(new Date(selectedGoogleEvent.end.dateTime), 'HH:mm')}` :
+                        'Time not available'
+                    }
                   </p>
                 )}
               </div>
 
-              {/* Time */}
-              <div className="flex items-center justify-center py-2">
-                <span className="text-gray-600 mr-2">⏰</span>
-                <span className="text-gray-900">
-                  {selectedGoogleEvent.start.dateTime && selectedGoogleEvent.end.dateTime ?
-                    `${format(new Date(selectedGoogleEvent.start.dateTime), 'HH:mm')} - ${format(new Date(selectedGoogleEvent.end.dateTime), 'HH:mm')}` :
-                    'Time not available'}
-                </span>
-              </div>
-
-              {/* Description */}
-              {selectedGoogleEvent.description && (
-                <div className="text-center py-2">
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {cleanHtmlTags(selectedGoogleEvent.description)}
-                  </p>
+              {/* Google Meet Section */}
+              {selectedGoogleEvent.hangoutLink && (
+                <div className="flex items-start space-x-3">
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => {
+                        (window as any).open(selectedGoogleEvent.hangoutLink, '_blank');
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Join with Google Meet
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Location */}
+              {/* Location Section */}
               {selectedGoogleEvent.location && (
-                <div className="text-center py-2">
-                  <button
-                    onClick={() => {
-                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedGoogleEvent.location)}`;
-                      (window as any).open(mapsUrl, '_blank');
-                    }}
-                    className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
-                  >
-                    📍 {selectedGoogleEvent.location}
-                  </button>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 text-gray-600 flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => {
+                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedGoogleEvent.location)}`;
+                        (window as any).open(mapsUrl, '_blank');
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm break-words text-left"
+                    >
+                      {selectedGoogleEvent.location}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
-                {selectedGoogleEvent.hangoutLink && (
-                  <button
-                    onClick={() => {
-                      (window as any).open(selectedGoogleEvent.hangoutLink, '_blank');
-                    }}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm font-medium"
-                  >
-                    Join Google Meet
-                  </button>
-                )}
+              {/* Description Section */}
+              {selectedGoogleEvent.description && (
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 text-gray-600 flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-600 leading-relaxed break-words text-left">
+                      {cleanHtmlTags(selectedGoogleEvent.description)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                {selectedGoogleEvent.htmlLink && (
-                  <button
-                    onClick={() => {
-                      (window as any).open(selectedGoogleEvent.htmlLink, '_blank');
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm font-medium"
-                  >
-                    Open in Google Calendar
-                  </button>
-                )}
-              </div>
+              {/* Open in Google Calendar */}
+              {selectedGoogleEvent.htmlLink && (
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 text-gray-600 flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => {
+                        (window as any).open(selectedGoogleEvent.htmlLink, '_blank');
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm text-left"
+                    >
+                      Open in Google Calendar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

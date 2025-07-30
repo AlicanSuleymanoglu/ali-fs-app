@@ -141,8 +141,8 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-9 gap-1 text-center items-center">
-        <Button variant="ghost" size="sm" className="p-1 col-span-1" onClick={goToPreviousWeek}>
+      <div className="grid grid-cols-9 gap-1 text-center items-start">
+        <Button variant="ghost" size="sm" className="p-1 col-span-1 mt-2" onClick={goToPreviousWeek}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
 
@@ -203,7 +203,7 @@ const WeeklyOverview: React.FC<WeeklyOverviewProps> = ({
           })}
         </div>
 
-        <Button variant="ghost" size="sm" className="p-1 col-span-1" onClick={goToNextWeek}>
+        <Button variant="ghost" size="sm" className="p-1 col-span-1 mt-2" onClick={goToNextWeek}>
           <ChevronRight className="h-5 w-5" />
         </Button>
       </div>
