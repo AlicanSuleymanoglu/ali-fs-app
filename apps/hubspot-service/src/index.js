@@ -1310,14 +1310,34 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
   try {
     // Fetch the original meeting details BEFORE updating
     let originalMeetingDetails;
+    let existingInternalNotes = '';
     try {
       const origRes = await hubspotClient.crm.objects.meetings.basicApi.getById(meetingId, [
         "hs_meeting_start_time",
-        "hs_meeting_end_time"
+        "hs_meeting_end_time",
+        "hs_internal_meeting_notes"
       ]);
       originalMeetingDetails = origRes.body || origRes;
+      
+      // Get existing internal notes
+      if (originalMeetingDetails.properties && originalMeetingDetails.properties.hs_internal_meeting_notes) {
+        existingInternalNotes = originalMeetingDetails.properties.hs_internal_meeting_notes;
+      }
     } catch (err) {
       console.error('❌ Could not fetch original meeting details for Google sync:', err.message);
+    }
+
+    // Prepare internal notes by appending new notes to existing ones
+    let combinedInternalNotes = existingInternalNotes;
+    if (internalNotes && internalNotes.trim()) {
+      const timestamp = new Date().toISOString();
+      const formattedTimestamp = new Date(timestamp).toLocaleString();
+      
+      if (existingInternalNotes) {
+        combinedInternalNotes = `${existingInternalNotes}\n\n--- RESCHEDULED on ${formattedTimestamp} ---\n${internalNotes}`;
+      } else {
+        combinedInternalNotes = `--- RESCHEDULED on ${formattedTimestamp} ---\n${internalNotes}`;
+      }
     }
 
     // Send timestamps as strings (update HubSpot)
@@ -1327,7 +1347,7 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
         hs_meeting_end_time: String(endTime),
         hs_timestamp: String(startTime),
         hs_meeting_outcome: "RESCHEDULED",
-        hs_internal_meeting_notes: internalNotes || '',
+        hs_internal_meeting_notes: combinedInternalNotes,
       }
     });
     // Log the FULL response from HubSpot!
