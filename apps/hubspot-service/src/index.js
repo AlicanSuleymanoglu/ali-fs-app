@@ -1327,16 +1327,21 @@ app.patch('/api/meetings/:id/reschedule', async (req, res) => {
       console.error('❌ Could not fetch original meeting details for Google sync:', err.message);
     }
 
-    // Prepare internal notes by appending new notes to existing ones
+    // Prepare internal notes by appending new notes to existing ones using HTML line breaks
+    // Format required:
+    // - existing note + <br>
+    // - new note + <br>
+    // - Rescheduled on DD.MM.YYYY HH:MM
     let combinedInternalNotes = existingInternalNotes;
     if (internalNotes && internalNotes.trim()) {
-      const timestamp = new Date().toISOString();
-      const formattedTimestamp = new Date(timestamp).toLocaleString();
-      
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const formattedTimestamp = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
       if (existingInternalNotes) {
-        combinedInternalNotes = `${existingInternalNotes}\n\n--- RESCHEDULED on ${formattedTimestamp} ---\n${internalNotes}`;
+        combinedInternalNotes = `${existingInternalNotes}<br>${internalNotes}<br>Rescheduled on ${formattedTimestamp}`;
       } else {
-        combinedInternalNotes = `--- RESCHEDULED on ${formattedTimestamp} ---\n${internalNotes}`;
+        combinedInternalNotes = `${internalNotes}<br>Rescheduled on ${formattedTimestamp}`;
       }
     }
 
