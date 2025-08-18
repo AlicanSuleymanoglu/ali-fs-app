@@ -113,7 +113,7 @@ const MeetingOutcome: React.FC = () => {
         </Button>
 
         <div className="w-full max-w-md mx-auto">
-          <h2 className="text-xl font-semibold mb-4 text-center">Meeting Outcome</h2>
+          <h2 className="text-xl font-semibold mb-4 text-center">Deal Outcome</h2>
           {dealName && (
             <p className="text-sm text-gray-500 mb-8 text-center">
               Updating deal: {dealName}
