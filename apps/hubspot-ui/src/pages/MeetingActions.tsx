@@ -502,6 +502,17 @@ const MeetingActions: React.FC = () => {
             }}>No, just cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               setShowCancelTaskPrompt(false);
+              const missing = [] as string[];
+              if (!meetingDetails.companyId) missing.push('Company');
+              if (!meetingDetails.dealId && (!meetingDetails.deals || meetingDetails.deals.length === 0)) missing.push('Deal');
+              if (!meetingDetails.contactId) missing.push('Contact');
+
+              if (missing.length > 0) {
+                setMissingFields(missing);
+                setValidationDialogOpen(true);
+                return;
+              }
+
               setShowCancelTaskDialog(true);
             }} className="bg-green-600 hover:bg-green-700 text-white">Yes, add follow-up task</AlertDialogAction>
           </AlertDialogFooter>
