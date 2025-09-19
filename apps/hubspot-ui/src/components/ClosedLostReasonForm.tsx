@@ -19,6 +19,7 @@ interface ClosedLostReasonFormProps {
 const REASONS_REQUIRING_DATE = [
   "Too sophisticated/modern",
   "Too expensive",
+  "Hardware price",
   "Too many features",
   "Bad timing",
   "No interest",
@@ -115,6 +116,7 @@ const ClosedLostReasonForm: React.FC<ClosedLostReasonFormProps> = ({ dealId, onC
               <SelectContent>
                 <SelectItem value="Too sophisticated/modern">Too sophisticated/modern</SelectItem>
                 <SelectItem value="Too expensive">Too expensive</SelectItem>
+                <SelectItem value="Hardware price">Hardware price</SelectItem>
                 <SelectItem value="Too many features">Too many features</SelectItem>
                 <SelectItem value="No fit to the restaurant type">No fit to the restaurant type</SelectItem>
                 <SelectItem value="No interest">No interest</SelectItem>
