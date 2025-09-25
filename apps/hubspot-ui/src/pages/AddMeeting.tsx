@@ -170,7 +170,9 @@ const AddMeeting: React.FC = () => {
       startTime: startMillis,  // ✔️
       endTime: endMillis,      // ✔️
       notes,
-      dealId: prefilledData.dealId,
+      // Prefer selectedCompany.dealId (from CompanySearch filtered/sorted logic),
+      // fallback to prefilled state if provided by previous flow
+      dealId: selectedCompany?.dealId || prefilledData.dealId,
       contactId: prefilledData.contactId,
       contactPhone: prefilledData.contactPhone,
       internalNotes: prefilledData.internalNotes,

@@ -251,11 +251,16 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
         let companyWithDeal = { ...company };
         if (dealRes.ok) {
           const data = await dealRes.json();
-          const deals = Array.isArray(data)
-            ? data
-            : (data.results || data.deals || []);
-          const firstDeal = deals[0];
-          companyWithDeal = { ...company, dealId: firstDeal?.id || null };
+          const deals = Array.isArray(data) ? data : (data.results || data.deals || []);
+          if (deals.length === 0) {
+            // No open deal found per backend filter → prompt creation
+            setSelectedCompanyForDialog(company);
+            setShowNoDealDialog(true);
+            return;
+          }
+          // Backend already filtered/sorted → pick the first
+          const selected = deals[0];
+          companyWithDeal = { ...company, dealId: selected?.id || null };
         }
         onSelectRef.current(companyWithDeal);
       } catch (err) {
@@ -265,7 +270,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
     }
 
     try {
-      // First check for deals
+      // First check for deals (backend returns filtered/sorted open deals)
       const dealRes = await fetch(`${BASE_URL}/api/hubspot/company/${company.id}/deals`, {
         credentials: 'include'
       });
@@ -275,11 +280,17 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
       }
 
       const data = await dealRes.json();
-      const deals = Array.isArray(data)
-        ? data
-        : (data.results || data.deals || []);
-      const firstDeal = deals[0];
-      const companyWithDeal = { ...company, dealId: firstDeal?.id || null };
+      const deals = Array.isArray(data) ? data : (data.results || data.deals || []);
+
+      if (deals.length === 0) {
+        // No eligible deals → open dialog to create a new one
+        setSelectedCompanyForDialog(company);
+        setShowNoDealDialog(true);
+        return;
+      }
+
+      const selected = deals[0];
+      const companyWithDeal = { ...company, dealId: selected?.id || null };
 
       // Always look for contacts first, regardless of deal status
       setSelectedCompanyForDialog(companyWithDeal);
@@ -562,7 +573,7 @@ const CompanySearch: React.FC<CompanySearchProps> = ({ onSelect, value, required
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-gray-500 mb-4">
-              No deal was found for {selectedCompanyForDialog?.name}.
+              No open deal was found for {selectedCompanyForDialog?.name}.
               You need to create a deal with the following details!
             </p>
             <div className="space-y-2 text-sm border-l-2 border-gray-200 pl-3">

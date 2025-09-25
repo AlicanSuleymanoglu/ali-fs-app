@@ -1498,14 +1498,22 @@ app.get('/api/hubspot/company/:companyId/deals', async (req, res) => {
 
     const dealDetails = await hubspotClient.crm.deals.batchApi.read({
       inputs: dealIds.map(id => ({ id })),
-      properties: ['dealname', 'dealstage', 'pipeline', 'amount', 'contract_uploaded'],
+      properties: ['dealname', 'dealstage', 'pipeline', 'createdate', 'amount', 'contract_uploaded'],
     });
 
-    const salesPipelineDeals = dealDetails.results.filter(
-      deal => deal.properties.pipeline === 'default' // adjust if your pipeline ID differs
-    );
+    // Filter to default pipeline and open stages
+    const OPEN_STAGES = new Set(['appointmentscheduled', 'qualifiedtobuy']);
+    const filteredDeals = dealDetails.results
+      .filter(deal => deal?.properties?.pipeline === 'default' && OPEN_STAGES.has(deal?.properties?.dealstage))
+      // Sort by createdate descending (most recent first)
+      .sort((a, b) => {
+        const aCreated = Number(new Date(a?.properties?.createdate || 0).getTime());
+        const bCreated = Number(new Date(b?.properties?.createdate || 0).getTime());
+        return bCreated - aCreated;
+      });
 
-    res.json(salesPipelineDeals);
+    // Return filtered and sorted list (frontend will pick first if any)
+    res.json(filteredDeals);
   } catch (err) {
     console.error("❌ Error fetching deals for company:", err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to fetch deals', details: err.response?.data || err.message });
