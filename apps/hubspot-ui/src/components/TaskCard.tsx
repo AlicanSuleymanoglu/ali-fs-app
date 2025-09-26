@@ -117,7 +117,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onComplete, onDisqua
     endTime.setHours(endTime.getHours() + 1);
 
     const payload = {
-      title: "Sales Followup",
+      title: `Sales Followup with ${task.restaurantName}`,
       companyId: task.companyId || `task-${task.id}`,
       dealId: task.dealId,
       meetingType: "Sales Followup",

@@ -70,7 +70,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCreateTas
     const dealIds = allCompanies.map(c => c.dealId || null);
 
     const payload = {
-      title: meetingType,
+      title: `${meetingType} with ${selectedCompany.name}`,
       companyId: selectedCompany.id,
       dealId: selectedCompany.dealId || null,
       meetingType,
